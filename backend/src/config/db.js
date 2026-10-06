@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-const caPath = path.join(__dirname, 'ca.pem');
+const caPath =
+    process.env.DB_SSL_CA_FILE || path.join(__dirname, 'ca.pem');
 
 const sslConfig = {
     ca: fs.readFileSync(caPath, 'utf8'),
