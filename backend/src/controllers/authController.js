@@ -12,45 +12,81 @@ const JWT_SECRET =
 
 
 
-/* ============================================================
-   EMAIL — RESEND
-   ============================================================ */
+// ============================================================
+// EMAIL — BREVO
+// ============================================================
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-const MAIL_FROM =
-  process.env.MAIL_FROM || 'WINCREA <onboarding@resend.dev>';
+const BREVO_API_URL =
+  'https://api.brevo.com/v3/smtp/email';
 
 async function sendEmail({ to, subject, html }) {
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error('RESEND_API_KEY is missing.');
+  const apiKey = process.env.BREVO_API_KEY;
+  const senderEmail = process.env.BREVO_SENDER_EMAIL;
+  const senderName = process.env.BREVO_SENDER_NAME || 'WINCREA';
+
+  if (!apiKey || !senderEmail) {
+    throw new Error(
+      'Brevo configuration missing. Check BREVO_API_KEY and BREVO_SENDER_EMAIL.'
+    );
   }
 
-  const { data, error } = await resend.emails.send({
-    from: MAIL_FROM,
-    to: [to],
-    subject,
-    html,
+  const response = await fetch(BREVO_API_URL, {
+    method: 'POST',
+    headers: {
+      'api-key': apiKey,
+      accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender: {
+        name: senderName,
+        email: senderEmail,
+      },
+      to: [
+        {
+          email: to,
+        },
+      ],
+      subject,
+      htmlContent: html,
+    }),
+    signal: AbortSignal.timeout(20000),
   });
 
-  if (error) {
-    console.error('Resend email error:', error);
-    throw new Error(error.message || 'Failed to send email.');
+  const responseText = await response.text();
+
+  let result = {};
+
+  if (responseText) {
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      throw new Error(
+        'Brevo returned an invalid response.'
+      );
+    }
   }
 
-  if (!data || !data.id) {
-    throw new Error('Resend did not confirm email submission.');
+  if (!response.ok) {
+    console.error('Brevo email error:', {
+      statusCode: response.status,
+      response: result,
+    });
+
+    throw new Error(
+      `Brevo email failed (${response.status}): ${
+        result.message || result.code || response.statusText
+      }`
+    );
   }
 
-  console.log('Email accepted by Resend:', data.id);
+  console.log(
+    'Brevo accepted email:',
+    result.messageId || 'accepted'
+  );
 
-  return data;
+  return result;
 }
-
-
-
-
-
 // ============================================================
 // HELPERS
 // ============================================================
