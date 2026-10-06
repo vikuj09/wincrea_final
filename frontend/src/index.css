@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  @apply bg-canvas text-ink-900 font-body antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #DDD6C7;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.font-display {
+  font-family: 'Source Serif 4', Georgia, serif;
+}
+
+.card {
+  @apply bg-panel border border-slate-100 rounded-md shadow-card;
+}
+
+.btn {
+  @apply inline-flex items-center gap-2 px-3.5 py-2 rounded-sm text-sm font-medium transition-colors duration-150;
+}
+.btn-primary {
+  @apply btn bg-ink-900 text-canvas hover:bg-ink-800;
+}
+.btn-secondary {
+  @apply btn bg-transparent border border-ink-900/15 text-ink-900 hover:bg-ink-900/5;
+}
+.btn-danger {
+  @apply btn bg-signal-bad/10 text-signal-bad hover:bg-signal-bad/20;
+}
+.btn-ghost {
+  @apply btn text-ink-700 hover:bg-ink-900/5;
+}
+
+.input {
+  @apply w-full bg-panel border border-ink-900/15 rounded-sm px-3 py-2 text-sm outline-none focus:border-loom-500 focus:ring-1 focus:ring-loom-500 transition-colors;
+}
+
+.label {
+  @apply text-xs font-semibold uppercase tracking-wide text-ink-700/70 mb-1 block;
+}
+
+.table-head {
+  @apply text-left text-xs font-semibold uppercase tracking-wide text-ink-700/60 border-b border-ink-900/10 py-2 px-3;
+}
+
+.table-cell {
+  @apply py-2.5 px-3 text-sm border-b border-ink-900/5;
+}
+
+.badge {
+  @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium;
+}

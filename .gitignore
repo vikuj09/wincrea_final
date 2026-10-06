@@ -1,0 +1,19 @@
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Aiven SSL certificate
+ca.pem
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.env
+.env.*
+!.env.example
+ca.pem
+.DS_Store
+node_modules/
