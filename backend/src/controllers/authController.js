@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
 const pool = require('../config/db');
 
@@ -11,40 +11,44 @@ const JWT_SECRET =
   'window-creators-secret-change-this';
 
 
-// ============================================================
-// EMAIL
-// ============================================================
 
-const mailTransporter =
-  nodemailer.createTransport({
-    host:
-      process.env.SMTP_HOST,
+/* ============================================================
+   EMAIL — RESEND
+   ============================================================ */
 
-    port:
-      Number(
-        process.env.SMTP_PORT || 587
-      ),
-
-    secure:
-      String(
-        process.env.SMTP_SECURE || 'false'
-      ).toLowerCase() === 'true',
-
-    auth: {
-
-      user:
-        process.env.SMTP_USER,
-
-      pass:
-        process.env.SMTP_PASSWORD,
-
-    },
-  });
-
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const MAIL_FROM =
-  process.env.MAIL_FROM ||
-  process.env.SMTP_USER;
+  process.env.MAIL_FROM || 'WINCREA <onboarding@resend.dev>';
+
+async function sendEmail({ to, subject, html }) {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY is missing.');
+  }
+
+  const { data, error } = await resend.emails.send({
+    from: MAIL_FROM,
+    to: [to],
+    subject,
+    html,
+  });
+
+  if (error) {
+    console.error('Resend email error:', error);
+    throw new Error(error.message || 'Failed to send email.');
+  }
+
+  if (!data || !data.id) {
+    throw new Error('Resend did not confirm email submission.');
+  }
+
+  console.log('Email accepted by Resend:', data.id);
+
+  return data;
+}
+
+
+
 
 
 // ============================================================
@@ -104,40 +108,6 @@ function getOtpExpiry() {
     1000
   );
 }
-
-
-async function sendEmail({
-  to,
-  subject,
-  html,
-}) {
-
-  if (
-    !process.env.SMTP_HOST ||
-    !process.env.SMTP_USER ||
-    !process.env.SMTP_PASSWORD
-  ) {
-
-    throw new Error(
-      'SMTP email configuration is missing.'
-    );
-  }
-
-
-  await mailTransporter.sendMail({
-
-    from:
-      MAIL_FROM,
-
-    to,
-
-    subject,
-
-    html,
-
-  });
-}
-
 
 async function createOtp({
   email,
