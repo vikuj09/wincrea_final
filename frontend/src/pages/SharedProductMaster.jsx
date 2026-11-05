@@ -7,10 +7,12 @@ import {
   Package,
   RefreshCw,
   AlertCircle,
+  Search,
+  X,
 } from 'lucide-react';
 
 const API_URL =
-  (import.meta.env.VITE_API_URL || '/api');
+  'http://localhost:5055/api';
 
 export default function SharedProductMaster() {
 
@@ -29,6 +31,16 @@ export default function SharedProductMaster() {
     setError,
   ] = useState('');
 
+  const [
+    search,
+    setSearch,
+  ] = useState('');
+
+
+  // ============================================================
+  // LOAD LIVE PRODUCT MASTER DATA
+  // ============================================================
+
   useEffect(() => {
 
     async function load() {
@@ -46,7 +58,10 @@ export default function SharedProductMaster() {
 
         const response =
           await fetch(
-            `${API_URL}/share/public/${token}`
+            `${API_URL}/share/public/${token}`,
+            {
+              cache: 'no-store',
+            }
           );
 
         const data =
@@ -98,20 +113,65 @@ export default function SharedProductMaster() {
   }, []);
 
 
+  // ============================================================
+  // SEARCH FILTER
+  // ============================================================
+
+  const filteredProducts =
+    products.filter((product) => {
+
+      const query =
+        search.trim().toLowerCase();
+
+      if (!query) return true;
+
+      return (
+        String(product.sku || '')
+          .toLowerCase()
+          .includes(query) ||
+
+        String(product.name || '')
+          .toLowerCase()
+          .includes(query) ||
+
+        String(product.category || '')
+          .toLowerCase()
+          .includes(query) ||
+
+        String(product.color || '')
+          .toLowerCase()
+          .includes(query)
+      );
+
+    });
+
+
+  // ============================================================
+  // LOADING
+  // ============================================================
+
   if (loading) {
 
     return (
       <PageShell>
+
         <div className="flex items-center justify-center py-20">
+
           <RefreshCw
             size={20}
             className="animate-spin text-loom-600"
           />
+
         </div>
+
       </PageShell>
     );
   }
 
+
+  // ============================================================
+  // ERROR
+  // ============================================================
 
   if (error) {
 
@@ -140,10 +200,16 @@ export default function SharedProductMaster() {
   }
 
 
+  // ============================================================
+  // MAIN PAGE
+  // ============================================================
+
   return (
     <PageShell>
 
       <div className="space-y-6">
+
+        {/* HEADER */}
 
         <header className="flex items-center gap-3">
 
@@ -176,6 +242,92 @@ export default function SharedProductMaster() {
 
         </header>
 
+
+        {/* SEARCH AND PRODUCT COUNT */}
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+
+          <div className="relative w-full sm:max-w-md">
+
+            <Search
+              size={18}
+              className="
+                absolute
+                left-3
+                top-1/2
+                -translate-y-1/2
+                text-ink-700/40
+              "
+            />
+
+            <input
+              type="text"
+              value={search}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+              placeholder="Search SKU, product, category or color..."
+              className="
+                w-full
+                pl-10
+                pr-10
+                py-3
+                rounded-xl
+                border
+                border-ink-900/10
+                bg-white
+                text-sm
+                outline-none
+                focus:border-loom-600
+                focus:ring-2
+                focus:ring-loom-600/10
+              "
+            />
+
+            {search && (
+
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="
+                  absolute
+                  right-3
+                  top-1/2
+                  -translate-y-1/2
+                  text-ink-700/40
+                  hover:text-ink-900
+                "
+                aria-label="Clear search"
+              >
+                <X size={17} />
+              </button>
+
+            )}
+
+          </div>
+
+
+          <p className="text-xs text-ink-700/55">
+
+            Showing{' '}
+            <span className="font-semibold text-ink-900">
+              {filteredProducts.length}
+            </span>
+
+            {' '}of{' '}
+
+            <span className="font-semibold text-ink-900">
+              {products.length}
+            </span>
+
+            {' '}products
+
+          </p>
+
+        </div>
+
+
+        {/* PRODUCT TABLE */}
 
         <div className="card overflow-hidden">
 
@@ -219,76 +371,117 @@ export default function SharedProductMaster() {
 
               </thead>
 
+
               <tbody>
 
-                {products.map(
-                  (product) => (
+                {filteredProducts.length > 0 ? (
 
-                    <tr
-                      key={product.id}
-                      className="border-b border-ink-900/5 last:border-0"
+                  filteredProducts.map(
+                    (product) => (
+
+                      <tr
+                        key={product.id}
+                        className="
+                          border-b
+                          border-ink-900/5
+                          last:border-0
+                          hover:bg-loom-50/40
+                        "
+                      >
+
+                        <td className="px-4 py-3 font-medium">
+                          {product.sku}
+                        </td>
+
+                        <td className="px-4 py-3">
+                          {product.name}
+                        </td>
+
+                        <td className="px-4 py-3">
+
+                          <span
+                            className="
+                              inline-flex
+                              rounded-full
+                              bg-loom-50
+                              border
+                              border-loom-100
+                              px-2
+                              py-0.5
+                              text-[10px]
+                              font-semibold
+                              text-loom-700
+                            "
+                          >
+                            {product.category}
+                          </span>
+
+                        </td>
+
+                        <td className="px-4 py-3">
+                          {product.color || '—'}
+                        </td>
+
+                        <td className="px-4 py-3">
+                          {Number(
+                            product.width_cm || 0
+                          )}{' '}
+                          CM
+                        </td>
+
+                        <td className="px-4 py-3 text-right">
+                          {Number(
+                            product.stock || 0
+                          ).toLocaleString(
+                            'en-IN'
+                          )}{' '}
+                          m
+                        </td>
+
+                        <td className="px-4 py-3 text-right">
+                          {Number(
+                            product.rolls || 0
+                          ).toLocaleString(
+                            'en-IN'
+                          )}
+                        </td>
+
+                      </tr>
+
+                    )
+                  )
+
+                ) : (
+
+                  <tr>
+
+                    <td
+                      colSpan="7"
+                      className="
+                        px-4
+                        py-12
+                        text-center
+                        text-ink-700/50
+                      "
                     >
 
-                      <td className="px-4 py-3 font-medium">
-                        {product.sku}
-                      </td>
+                      <Search
+                        size={28}
+                        className="mx-auto mb-3 opacity-40"
+                      />
 
-                      <td className="px-4 py-3">
-                        {product.name}
-                      </td>
+                      <p className="font-medium">
+                        No products found
+                      </p>
 
-                      <td className="px-4 py-3">
+                      <p className="text-xs mt-1">
+                        Try searching with a different SKU, name or category.
+                      </p>
 
-                        <span
-                          className="
-                            inline-flex
-                            rounded-full
-                            bg-loom-50
-                            border
-                            border-loom-100
-                            px-2
-                            py-0.5
-                            text-[10px]
-                            font-semibold
-                            text-loom-700
-                          "
-                        >
-                          {product.category}
-                        </span>
+                    </td>
 
-                      </td>
+                  </tr>
 
-                      <td className="px-4 py-3">
-                        {product.color || '—'}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        {Number(
-                          product.width_cm || 0
-                        )}{' '}
-                        CM
-                      </td>
-
-                      <td className="px-4 py-3 text-right">
-                        {Number(
-                          product.stock || 0
-                        ).toLocaleString(
-                          'en-IN'
-                        )}{' '}
-                        m
-                      </td>
-
-                      <td className="px-4 py-3 text-right">
-                        {Number(
-                          product.rolls || 0
-                        ).toLocaleString(
-                          'en-IN'
-                        )}
-                      </td>
-
-                    </tr>
-
-                  )
                 )}
 
               </tbody>
@@ -305,6 +498,10 @@ export default function SharedProductMaster() {
   );
 }
 
+
+// ============================================================
+// PAGE SHELL
+// ============================================================
 
 function PageShell({
   children,
