@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 
 const express = require('express');
@@ -7,53 +6,33 @@ const cors = require('cors');
 const app = express();
 
 // ============================================================
-// CORS CONFIGURATION
+// CORS
+//
+// Allows the deployed frontend (Vercel) to call this API
+// (deployed separately on Render). Set FRONTEND_URL in the
+// backend's environment variables to your Vercel URL(s),
+// comma-separated if you have more than one (e.g. a preview
+// deployment and a production domain).
 // ============================================================
 
-const defaultOrigins = [
-    'https://vikuj.live',
-    'https://www.vikuj.live',
-    'https://wincrea-final.vercel.app',
-];
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 
-const allowedOrigins = [
-    ...new Set([
-        ...defaultOrigins,
-        ...(process.env.FRONTEND_URL || '')
-            .split(',')
-            .map((url) => url.trim().replace(/\/$/, ''))
-            .filter(Boolean),
-    ]),
-];
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow non-browser requests (curl, server-to-server, etc.)
+        if (!origin) return callback(null, true);
 
-console.log('Allowed frontend origins:', allowedOrigins);
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
 
-app.use(
-    cors({
-        origin: (origin, callback) => {
-            // Allow requests without an Origin header,
-            // such as curl and server-to-server requests.
-            if (!origin) {
-                return callback(null, true);
-            }
-
-            if (allowedOrigins.includes(origin)) {
-                return callback(null, true);
-            }
-
-            console.error(`Blocked CORS origin: ${origin}`);
-
-            return callback(
-                new Error(`CORS: origin ${origin} not allowed`)
-            );
-        },
-        credentials: true,
-    })
-);
-
-// ============================================================
-// BODY PARSING
-// ============================================================
+        return callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
+    credentials: true,
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -77,15 +56,10 @@ const purchaseOrderRoutes = require('./routes/purchaseOrderRoutes');
 const proformaInvoiceRoutes = require('./routes/proformaInvoiceRoutes');
 const shareRoutes = require('./routes/shareRoutes');
 
-// Health check
 app.get('/api/health', (req, res) => {
-    res.json({
-        success: true,
-        message: 'API is running',
-    });
+    res.json({ success: true, message: 'API is running' });
 });
 
-// API endpoints
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/customers', customerRoutes);
@@ -102,31 +76,15 @@ app.use('/api/proforma-invoices', proformaInvoiceRoutes);
 app.use('/api/share', shareRoutes);
 
 // ============================================================
-// 404 HANDLER
+// 404 + ERROR HANDLING
 // ============================================================
 
 app.use((req, res) => {
-    res.status(404).json({
-        success: false,
-        message: 'Route not found',
-    });
+    res.status(404).json({ success: false, message: 'Route not found' });
 });
 
-// ============================================================
-// ERROR HANDLER
-// ============================================================
-
 app.use((err, req, res, next) => {
-    console.error('Server error:', err.message);
-
-    // CORS rejection
-    if (err.message.startsWith('CORS:')) {
-        return res.status(403).json({
-            success: false,
-            message: err.message,
-        });
-    }
-
+    console.error(err);
     res.status(err.status || 500).json({
         success: false,
         message: err.message || 'Internal server error',
@@ -134,11 +92,11 @@ app.use((err, req, res, next) => {
 });
 
 // ============================================================
-// START SERVER
+// START
 // ============================================================
 
 const PORT = process.env.PORT || 5055;
 
 app.listen(PORT, () => {
-    console.log(`WINCREA API running on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
