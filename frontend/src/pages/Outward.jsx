@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState, useEffect } from 'react';
 import {
   PackageMinus,
@@ -8,6 +9,49 @@ import {
 
 import { useApp } from '../context/AppContext';
 import SearchInput from '../components/common/SearchInput';
+
+// ------------------------------------------------------------
+// CATEGORY BADGE
+// ------------------------------------------------------------
+
+function CategoryBadge({ category }) {
+  const value = String(category || 'ESSENTIAL').toUpperCase();
+
+  const styles = {
+    ESSENTIAL:
+      'bg-slate-100 text-slate-700 border-slate-200',
+    PREMIUM:
+      'bg-violet-100 text-violet-800 border-violet-200',
+    PEGASUS:
+      'bg-amber-100 text-amber-800 border-amber-200',
+  };
+
+  return (
+    <span
+      className={`
+        inline-flex
+        items-center
+        gap-1
+        px-2.5
+        py-1
+        rounded-full
+        text-[10px]
+        font-semibold
+        tracking-[0.08em]
+        border
+        ${styles[value] || styles.ESSENTIAL}
+      `}
+    >
+      {value === 'PREMIUM' && '◆'}
+      {value === 'PEGASUS' && '✦'}
+      {value}
+    </span>
+  );
+}
+
+// ------------------------------------------------------------
+// OUTWARD
+// ------------------------------------------------------------
 
 export default function Outward() {
   const {
@@ -33,22 +77,17 @@ export default function Outward() {
   const [saving, setSaving] = useState(false);
 
   // ------------------------------------------------------------
-  // Default customer
+  // DEFAULT CUSTOMER
   // ------------------------------------------------------------
 
   useEffect(() => {
-    if (
-      !customerId &&
-      customers.length > 0
-    ) {
-      setCustomerId(
-        String(customers[0].id)
-      );
+    if (!customerId && customers.length > 0) {
+      setCustomerId(String(customers[0].id));
     }
   }, [customers, customerId]);
 
   // ------------------------------------------------------------
-  // Product map
+  // PRODUCT MAP
   // ------------------------------------------------------------
 
   const productMap = useMemo(
@@ -63,15 +102,13 @@ export default function Outward() {
   );
 
   // ------------------------------------------------------------
-  // Available rolls
+  // AVAILABLE ROLLS
   // ------------------------------------------------------------
 
   const availableRolls = useMemo(() => {
-    const term =
-      query.trim().toLowerCase();
+    const term = query.trim().toLowerCase();
 
     return rolls.filter((roll) => {
-      // Only genuinely available rolls
       if (
         roll.status !== 'AVAILABLE' &&
         roll.status !== 'Available'
@@ -80,69 +117,46 @@ export default function Outward() {
       }
 
       const remaining = Number(
-        roll.remainingLength ??
-          roll.length ??
-          0
+        roll.remainingLength ?? roll.length ?? 0
       );
 
-      if (remaining <= 0) {
-        return false;
-      }
+      if (remaining <= 0) return false;
 
       // Product filter
       if (
         productId !== 'All' &&
-        Number(roll.productId) !==
-          Number(productId)
+        Number(roll.productId) !== Number(productId)
       ) {
         return false;
       }
 
-      // Search
-      if (!term) {
-        return true;
-      }
+      if (!term) return true;
 
-      const rollIdentifier =
-        String(
-          roll.rollId ||
-            roll.id ||
-            ''
-        ).toLowerCase();
+      const rollIdentifier = String(
+        roll.rollId || roll.id || ''
+      ).toLowerCase();
 
-      const batch =
-        String(
-          roll.batch || ''
-        ).toLowerCase();
+      const batch = String(
+        roll.batch || ''
+      ).toLowerCase();
 
-      const product =
-        productMap[
-          Number(roll.productId)
-        ];
+      const product = productMap[Number(roll.productId)];
 
-      const sku =
-        String(
-          product?.sku || ''
-        ).toLowerCase();
+      const sku = String(
+        product?.sku || ''
+      ).toLowerCase();
 
-      const productName =
-        String(
-          product?.name ||
-            roll.productName ||
-            ''
-        ).toLowerCase();
+      const productName = String(
+        product?.name || roll.productName || ''
+      ).toLowerCase();
 
-      const color =
-        String(
-          product?.color ||
-            roll.color ||
-            ''
-        ).toLowerCase();
+      const color = String(
+        product?.color || roll.color || ''
+      ).toLowerCase();
 
-      const category =
-        String(
-          product?.category || ''
-        ).toLowerCase();
+      const category = String(
+        product?.category || ''
+      ).toLowerCase();
 
       return (
         rollIdentifier.includes(term) ||
@@ -153,30 +167,22 @@ export default function Outward() {
         category.includes(term)
       );
     });
-  }, [
-    rolls,
-    productId,
-    query,
-    productMap,
-  ]);
+  }, [rolls, productId, query, productMap]);
 
   // ------------------------------------------------------------
-  // Selected rolls
+  // SELECTED ROLLS
   // ------------------------------------------------------------
 
   const selectedRolls = useMemo(
     () =>
       rolls.filter((roll) =>
-        selected.includes(
-          roll.id
-        )
+        selected.includes(roll.id)
       ),
     [rolls, selected]
   );
 
   // ------------------------------------------------------------
-  // Total meters
-  // Whole current roll is always dispatched
+  // TOTAL METERS
   // ------------------------------------------------------------
 
   const totalMeters = useMemo(
@@ -185,9 +191,7 @@ export default function Outward() {
         (total, roll) =>
           total +
           Number(
-            roll.remainingLength ??
-              roll.length ??
-              0
+            roll.remainingLength ?? roll.length ?? 0
           ),
         0
       ),
@@ -195,46 +199,33 @@ export default function Outward() {
   );
 
   // ------------------------------------------------------------
-  // Toggle roll
+  // TOGGLE ROLL
   // ------------------------------------------------------------
 
   function toggleRoll(rollId) {
     setSelected((prev) => {
       if (prev.includes(rollId)) {
-        return prev.filter(
-          (id) => id !== rollId
-        );
+        return prev.filter((id) => id !== rollId);
       }
 
-      return [
-        ...prev,
-        rollId,
-      ];
+      return [...prev, rollId];
     });
   }
 
   // ------------------------------------------------------------
-  // Select all filtered rolls
+  // SELECT ALL
   // ------------------------------------------------------------
 
   function selectAll() {
-    const ids =
-      availableRolls.map(
-        (roll) => roll.id
-      );
+    const ids = availableRolls.map((roll) => roll.id);
 
-    setSelected((prev) => {
-      const merged = new Set([
-        ...prev,
-        ...ids,
-      ]);
-
-      return Array.from(merged);
-    });
+    setSelected((prev) =>
+      Array.from(new Set([...prev, ...ids]))
+    );
   }
 
   // ------------------------------------------------------------
-  // Clear selection
+  // CLEAR SELECTION
   // ------------------------------------------------------------
 
   function clearSelection() {
@@ -242,11 +233,9 @@ export default function Outward() {
   }
 
   // ------------------------------------------------------------
-  // Dispatch
-  //
-  // IMPORTANT:
-  // This creates a DRAFT PI only.
-  // It does NOT deduct stock.
+  // DISPATCH
+  // Creates a DRAFT PI only.
+  // Does NOT deduct stock.
   // ------------------------------------------------------------
 
   async function submit() {
@@ -254,40 +243,24 @@ export default function Outward() {
     setConfirmation(null);
 
     if (selectedRolls.length === 0) {
-      setError(
-        'Please select at least one roll.'
-      );
+      setError('Please select at least one roll.');
       return;
     }
 
     if (!customerId) {
-      setError(
-        'Please select a customer.'
-      );
+      setError('Please select a customer.');
       return;
     }
 
-    // ----------------------------------------------------------
-    // Re-check every selected roll locally
-    // ----------------------------------------------------------
-
+    // Re-check selected rolls
     for (const roll of selectedRolls) {
       const remaining = Number(
-        roll.remainingLength ??
-          roll.length ??
-          0
+        roll.remainingLength ?? roll.length ?? 0
       );
 
-      if (
-        !Number.isFinite(
-          remaining
-        ) ||
-        remaining <= 0
-      ) {
+      if (!Number.isFinite(remaining) || remaining <= 0) {
         setError(
-          `Roll ${
-            roll.rollId || roll.id
-          } has no remaining stock.`
+          `Roll ${roll.rollId || roll.id} has no remaining stock.`
         );
         return;
       }
@@ -297,9 +270,7 @@ export default function Outward() {
         roll.status !== 'Available'
       ) {
         setError(
-          `Roll ${
-            roll.rollId || roll.id
-          } is no longer available. Refresh the page and try again.`
+          `Roll ${roll.rollId || roll.id} is no longer available. Refresh the page and try again.`
         );
         return;
       }
@@ -308,75 +279,41 @@ export default function Outward() {
     try {
       setSaving(true);
 
-      const items =
-        selectedRolls.map(
-          (roll) => {
-            const product =
-              productMap[
-                Number(roll.productId)
-              ];
+      const items = selectedRolls.map((roll) => {
+        const product = productMap[Number(roll.productId)];
 
-            const quantity =
-              Number(
-                roll.remainingLength ??
-                  roll.length ??
-                  0
-              );
-
-            const rate =
-              Number(
-                product?.ratePerMeter
-              ) || 0;
-
-            return {
-              rollId:
-                Number(roll.id),
-
-              productId:
-                Number(
-                  roll.productId
-                ),
-
-              quantity,
-
-              ratePerMeter:
-                rate,
-            };
-          }
+        const quantity = Number(
+          roll.remainingLength ?? roll.length ?? 0
         );
 
-      // --------------------------------------------------------
+        const rate = Number(product?.ratePerMeter) || 0;
+
+        return {
+          rollId: Number(roll.id),
+          productId: Number(roll.productId),
+          quantity,
+          ratePerMeter: rate,
+        };
+      });
+
       // Create DRAFT PI
-      // No stock deduction here.
-      // --------------------------------------------------------
+      const result = await createProformaInvoice({
+        customerId: Number(customerId),
 
-      const result =
-        await createProformaInvoice({
-          customerId:
-            Number(customerId),
+        invoiceDate: new Date()
+          .toISOString()
+          .slice(0, 10),
 
-          invoiceDate:
-            new Date()
-              .toISOString()
-              .slice(0, 10),
+        remarks: note.trim() || null,
 
-          remarks:
-            note.trim() || null,
+        createdBy: currentUser?.id
+          ? Number(currentUser.id)
+          : null,
 
-          createdBy:
-            currentUser?.id
-              ? Number(
-                  currentUser.id
-                )
-              : null,
+        items,
+      });
 
-          items,
-        });
-
-      // --------------------------------------------------------
       // Refresh database-backed data
-      // --------------------------------------------------------
-
       await Promise.all([
         loadRolls?.(),
         loadProducts?.(),
@@ -399,14 +336,11 @@ export default function Outward() {
       setNote('');
 
     } catch (err) {
-      console.error(
-        'OUTWARD DRAFT ERROR:',
-        err
-      );
+      console.error('OUTWARD DRAFT ERROR:', err);
 
       setError(
         err?.message ||
-          'Failed to create draft outward order.'
+        'Failed to create draft outward order.'
       );
     } finally {
       setSaving(false);
@@ -414,15 +348,13 @@ export default function Outward() {
   }
 
   // ------------------------------------------------------------
-  // Customer name
+  // SELECTED CUSTOMER
   // ------------------------------------------------------------
 
-  const selectedCustomer =
-    customers.find(
-      (customer) =>
-        Number(customer.id) ===
-        Number(customerId)
-    );
+  const selectedCustomer = customers.find(
+    (customer) =>
+      Number(customer.id) === Number(customerId)
+  );
 
   // ------------------------------------------------------------
   // UI
@@ -431,12 +363,9 @@ export default function Outward() {
   return (
     <div className="space-y-5">
 
-      {/* ======================================================
-          HEADER
-      ====================================================== */}
+      {/* HEADER */}
 
       <div className="flex flex-wrap items-start justify-between gap-3">
-
         <div>
           <h1 className="font-display text-2xl">
             Outward
@@ -457,22 +386,17 @@ export default function Outward() {
             Dispatch here → Confirm in Suppliers & PI
           </div>
         </div>
-
       </div>
 
-      {/* ======================================================
-          MAIN GRID
-      ====================================================== */}
+      {/* MAIN GRID */}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-        {/* ====================================================
-            ROLL SELECTION
-        ==================================================== */}
+        {/* ROLL SELECTION */}
 
         <div className="lg:col-span-2 space-y-3">
 
-          {/* Filters */}
+          {/* FILTERS */}
 
           <div className="flex flex-wrap items-center gap-3">
 
@@ -480,25 +404,19 @@ export default function Outward() {
               className="input w-auto"
               value={productId}
               onChange={(event) =>
-                setProductId(
-                  event.target.value
-                )
+                setProductId(event.target.value)
               }
             >
-              <option value="All">
-                All products
-              </option>
+              <option value="All">All products</option>
 
-              {products.map(
-                (product) => (
-                  <option
-                    key={product.id}
-                    value={product.id}
-                  >
-                    {product.sku}
-                  </option>
-                )
-              )}
+              {products.map((product) => (
+                <option
+                  key={product.id}
+                  value={product.id}
+                >
+                  {product.sku}
+                </option>
+              ))}
             </select>
 
             <SearchInput
@@ -512,9 +430,7 @@ export default function Outward() {
               type="button"
               className="btn-secondary"
               onClick={selectAll}
-              disabled={
-                availableRolls.length === 0
-              }
+              disabled={availableRolls.length === 0}
             >
               Select all
             </button>
@@ -523,21 +439,18 @@ export default function Outward() {
               type="button"
               className="btn-secondary"
               onClick={clearSelection}
-              disabled={
-                selected.length === 0
-              }
+              disabled={selected.length === 0}
             >
               Clear
             </button>
 
           </div>
 
-          {/* Roll list */}
+          {/* ROLL LIST */}
 
           <div className="card overflow-hidden">
 
             <div className="px-4 py-3 border-b border-ink-900/5 flex items-center justify-between">
-
               <div>
                 <h2 className="font-display text-base">
                   Available Rolls
@@ -549,10 +462,8 @@ export default function Outward() {
               </div>
 
               <div className="text-xs text-ink-700/50">
-                {availableRolls.length}{' '}
-                available
+                {availableRolls.length} available
               </div>
-
             </div>
 
             <div className="divide-y divide-ink-900/5 max-h-[34rem] overflow-y-auto">
@@ -570,224 +481,129 @@ export default function Outward() {
                 </div>
               )}
 
-              {availableRolls.map(
-                (roll) => {
-                  const product =
-                    productMap[
-                      Number(
-                        roll.productId
-                      )
-                    ];
+              {availableRolls.map((roll) => {
+                const product =
+                  productMap[Number(roll.productId)];
 
-                  const remaining =
-                    Number(
-                      roll.remainingLength ??
-                        roll.length ??
-                        0
-                    );
+                const remaining = Number(
+                  roll.remainingLength ?? roll.length ?? 0
+                );
 
-                  const category =
-                    String(
-                      product?.category ||
-                      'ESSENTIAL'
-                    ).toUpperCase();
+                const category = String(
+                  product?.category || 'ESSENTIAL'
+                ).toUpperCase();
 
-                  const isPremium =
-                    category ===
-                    'PREMIUM';
+                const isSelected = selected.includes(roll.id);
 
-                  const isSelected =
-                    selected.includes(
-                      roll.id
-                    );
+                return (
+                  <button
+                    key={roll.id}
+                    type="button"
+                    onClick={() => toggleRoll(roll.id)}
+                    className={`
+                      w-full
+                      text-left
+                      px-4
+                      py-3
+                      transition
+                      hover:bg-loom-50/50
+                      ${isSelected ? 'bg-loom-50' : ''}
+                    `}
+                  >
+                    <div className="flex items-center gap-3">
 
-                  return (
-                    <button
-                      key={roll.id}
-                      type="button"
-                      onClick={() =>
-                        toggleRoll(
-                          roll.id
-                        )
-                      }
-                      className={`
-                        w-full
-                        text-left
-                        px-4
-                        py-3
-                        transition
-                        hover:bg-loom-50/50
-                        ${
-                          isSelected
-                            ? 'bg-loom-50'
-                            : ''
-                        }
-                      `}
-                    >
-                      <div className="flex items-center gap-3">
+                      {/* CHECKBOX */}
 
-                        {/* Checkbox */}
+                      <div
+                        className={`
+                          h-5
+                          w-5
+                          rounded
+                          border
+                          flex
+                          items-center
+                          justify-center
+                          shrink-0
+                          ${
+                            isSelected
+                              ? 'border-loom-600 bg-loom-600 text-white'
+                              : 'border-ink-900/20 bg-white'
+                          }
+                        `}
+                      >
+                        {isSelected && (
+                          <CheckCircle2 size={14} />
+                        )}
+                      </div>
 
-                        <div
-                          className={`
-                            h-5
-                            w-5
-                            rounded
-                            border
-                            flex
-                            items-center
-                            justify-center
-                            shrink-0
-                            ${
-                              isSelected
-                                ? 'border-loom-600 bg-loom-600 text-white'
-                                : 'border-ink-900/20 bg-white'
-                            }
-                          `}
-                        >
-                          {isSelected && (
-                            <CheckCircle2
-                              size={14}
-                            />
+                      {/* PRODUCT DETAILS */}
+
+                      <div className="min-w-0 flex-1">
+
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+
+                          <span className="font-display text-base font-semibold tracking-[-0.01em] text-ink-900">
+                            {product?.name ||
+                              roll.productName ||
+                              'Product'}
+                          </span>
+
+                          <span className="text-[11px] uppercase tracking-[0.04em] text-ink-700/40">
+                            {product?.sku || '—'}
+                          </span>
+
+                          <CategoryBadge category={category} />
+
+                          {product?.color && (
+                            <span className="text-xs text-ink-700/50">
+                              {product.color}
+                            </span>
                           )}
-                        </div>
 
-                        {/* Main */}
-
-                        <div className="min-w-0 flex-1">
-
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-
-                            <span className="font-display text-base font-semibold tracking-[-0.01em] text-ink-900">
-                              {product?.name ||
-                                roll.productName ||
-                                'Product'}
+                          {roll.batch && (
+                            <span className="text-xs text-ink-700/50">
+                              Batch: {roll.batch}
                             </span>
-
-                            <span className="text-[11px] uppercase tracking-[0.04em] text-ink-700/40">
-                              {product?.sku ||
-                                '—'}
-                            </span>
-
-                            {/* CATEGORY */}
-
-                            {isPremium ? (
-                              <span
-                                className="
-                                  inline-flex
-                                  items-center
-                                  gap-1
-                                  px-2.5
-                                  py-1
-                                  rounded-full
-                                  text-[10px]
-                                  font-semibold
-                                  tracking-[0.08em]
-                                  bg-gradient-to-r
-                                  from-violet-100
-                                  via-fuchsia-100
-                                  to-violet-100
-                                  text-violet-800
-                                  border
-                                  border-violet-200
-                                  shadow-sm
-                                "
-                              >
-                                <span className="text-[8px] text-violet-600">
-                                  ◆
-                                </span>
-                                PREMIUM
-                              </span>
-                            ) : (
-                              <span
-                                className="
-                                  inline-flex
-                                  items-center
-                                  gap-1
-                                  px-2.5
-                                  py-1
-                                  rounded-full
-                                  text-[10px]
-                                  font-semibold
-                                  tracking-[0.08em]
-                                  bg-slate-100
-                                  text-slate-700
-                                  border
-                                  border-slate-200
-                                "
-                              >
-                                <span
-                                  className="
-                                    w-1.5
-                                    h-1.5
-                                    rounded-full
-                                    bg-slate-500
-                                  "
-                                />
-                                ESSENTIAL
-                              </span>
-                            )}
-
-                            {product?.color && (
-                              <span className="text-xs text-ink-700/50">
-                                {product.color}
-                              </span>
-                            )}
-
-                            {roll.batch && (
-                              <span className="text-xs text-ink-700/50">
-                                Batch:{' '}
-                                {roll.batch}
-                              </span>
-                            )}
-
-                          </div>
-
-                          <div className="text-xs text-ink-700/50 mt-1">
-                            Roll ID:{' '}
-                            <span className="font-medium text-ink-700/70">
-                              {roll.rollId ||
-                                roll.id}
-                            </span>
-
-                            {product?.width != null
-                              ? ` · ${product.width} cm`
-                              : ''}
-                          </div>
+                          )}
 
                         </div>
 
-                        {/* Length */}
+                        <div className="text-xs text-ink-700/50 mt-1">
+                          Roll ID:{' '}
+                          <span className="font-medium text-ink-700/70">
+                            {roll.rollId || roll.id}
+                          </span>
 
-                        <div className="text-right shrink-0">
-
-                          <div className="font-display text-base">
-                            {remaining.toLocaleString(
-                              'en-IN'
-                            )}{' '}
-                            m
-                          </div>
-
-                          <div className="text-[11px] text-ink-700/45">
-                            full roll
-                          </div>
-
+                          {product?.width != null
+                            ? ` · ${product.width} cm`
+                            : ''}
                         </div>
 
                       </div>
-                    </button>
-                  );
-                }
-              )}
+
+                      {/* LENGTH */}
+
+                      <div className="text-right shrink-0">
+                        <div className="font-display text-base">
+                          {remaining.toLocaleString('en-IN')} m
+                        </div>
+
+                        <div className="text-[11px] text-ink-700/45">
+                          full roll
+                        </div>
+                      </div>
+
+                    </div>
+                  </button>
+                );
+              })}
 
             </div>
           </div>
 
         </div>
 
-        {/* ====================================================
-            DISPATCH SUMMARY
-        ==================================================== */}
+        {/* DISPATCH SUMMARY */}
 
         <div className="space-y-3">
 
@@ -803,7 +619,7 @@ export default function Outward() {
               </p>
             </div>
 
-            {/* Summary */}
+            {/* SUMMARY */}
 
             <div className="grid grid-cols-2 gap-3">
 
@@ -823,15 +639,13 @@ export default function Outward() {
                 </div>
 
                 <div className="font-display text-xl mt-1">
-                  {totalMeters.toLocaleString(
-                    'en-IN'
-                  )}
+                  {totalMeters.toLocaleString('en-IN')}
                 </div>
               </div>
 
             </div>
 
-            {/* Customer */}
+            {/* CUSTOMER */}
 
             <div>
               <label className="label">
@@ -842,29 +656,19 @@ export default function Outward() {
                 className="input"
                 value={customerId}
                 onChange={(event) =>
-                  setCustomerId(
-                    event.target.value
-                  )
+                  setCustomerId(event.target.value)
                 }
               >
-                <option value="">
-                  Select customer
-                </option>
+                <option value="">Select customer</option>
 
-                {customers.map(
-                  (customer) => (
-                    <option
-                      key={
-                        customer.id
-                      }
-                      value={
-                        customer.id
-                      }
-                    >
-                      {customer.name}
-                    </option>
-                  )
-                )}
+                {customers.map((customer) => (
+                  <option
+                    key={customer.id}
+                    value={customer.id}
+                  >
+                    {customer.name}
+                  </option>
+                ))}
               </select>
 
               {selectedCustomer && (
@@ -874,7 +678,7 @@ export default function Outward() {
               )}
             </div>
 
-            {/* Note */}
+            {/* NOTE */}
 
             <div>
               <label className="label">
@@ -885,15 +689,13 @@ export default function Outward() {
                 className="input"
                 value={note}
                 onChange={(event) =>
-                  setNote(
-                    event.target.value
-                  )
+                  setNote(event.target.value)
                 }
                 placeholder="e.g. Against SO #2091"
               />
             </div>
 
-            {/* Selected roll preview */}
+            {/* SELECTED ROLL PREVIEW */}
 
             {selectedRolls.length > 0 && (
               <div className="border border-ink-900/5 rounded-xl overflow-hidden">
@@ -904,119 +706,59 @@ export default function Outward() {
 
                 <div className="max-h-44 overflow-y-auto divide-y divide-ink-900/5">
 
-                  {selectedRolls.map(
-                    (roll) => {
+                  {selectedRolls.map((roll) => {
+                    const product =
+                      productMap[Number(roll.productId)];
 
-                      const product =
-                        productMap[
-                          Number(
-                            roll.productId
-                          )
-                        ];
+                    const category = String(
+                      product?.category || 'ESSENTIAL'
+                    ).toUpperCase();
 
-                      const category =
-                        String(
-                          product?.category ||
-                          'ESSENTIAL'
-                        ).toUpperCase();
+                    return (
+                      <div
+                        key={roll.id}
+                        className="px-3 py-2 flex items-center justify-between gap-3"
+                      >
+                        <div className="min-w-0">
 
-                      const isPremium =
-                        category ===
-                        'PREMIUM';
+                          <div className="flex items-center gap-2 flex-wrap">
 
-                      return (
-                        <div
-                          key={roll.id}
-                          className="px-3 py-2 flex items-center justify-between gap-3"
-                        >
-                          <div className="min-w-0">
-
-                            <div className="flex items-center gap-2 flex-wrap">
-
-                              <div className="font-display text-sm font-semibold tracking-[-0.01em] text-ink-900 truncate">
-                                {product?.name ||
-                                  roll.productName ||
-                                  'Product'}
-                              </div>
-
-                              {isPremium ? (
-                                <span
-                                  className="
-                                    inline-flex
-                                    items-center
-                                    gap-1
-                                    px-2
-                                    py-0.5
-                                    rounded-full
-                                    text-[9px]
-                                    font-semibold
-                                    tracking-[0.08em]
-                                    bg-violet-100
-                                    text-violet-800
-                                    border
-                                    border-violet-200
-                                  "
-                                >
-                                  ◆ PREMIUM
-                                </span>
-                              ) : (
-                                <span
-                                  className="
-                                    inline-flex
-                                    items-center
-                                    gap-1
-                                    px-2
-                                    py-0.5
-                                    rounded-full
-                                    text-[9px]
-                                    font-semibold
-                                    tracking-[0.08em]
-                                    bg-slate-100
-                                    text-slate-700
-                                    border
-                                    border-slate-200
-                                  "
-                                >
-                                  ESSENTIAL
-                                </span>
-                              )}
-
+                            <div className="font-display text-sm font-semibold tracking-[-0.01em] text-ink-900 truncate">
+                              {product?.name ||
+                                roll.productName ||
+                                'Product'}
                             </div>
 
-                            <div className="text-xs text-ink-700/50 mt-1">
-                              {product?.sku ||
-                                '—'}
-                              {' · '}
-                              Roll ID{' '}
-                              <span className="text-ink-700/65">
-                                {roll.rollId ||
-                                  roll.id}
-                              </span>
-                            </div>
+                            <CategoryBadge category={category} />
 
                           </div>
 
-                          <div className="text-sm font-medium shrink-0">
-                            {Number(
-                              roll.remainingLength ??
-                                roll.length ??
-                                0
-                            ).toLocaleString(
-                              'en-IN'
-                            )}{' '}
-                            m
+                          <div className="text-xs text-ink-700/50 mt-1">
+                            {product?.sku || '—'}
+                            {' · '}
+                            Roll ID{' '}
+                            <span className="text-ink-700/65">
+                              {roll.rollId || roll.id}
+                            </span>
                           </div>
 
                         </div>
-                      );
-                    }
-                  )}
+
+                        <div className="text-sm font-medium shrink-0">
+                          {Number(
+                            roll.remainingLength ?? roll.length ?? 0
+                          ).toLocaleString('en-IN')} m
+                        </div>
+
+                      </div>
+                    );
+                  })}
 
                 </div>
               </div>
             )}
 
-            {/* Warning */}
+            {/* WARNING */}
 
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 flex gap-2">
 
@@ -1032,17 +774,14 @@ export default function Outward() {
 
                 <div className="mt-0.5 opacity-80">
                   After dispatching, go to
-                  <strong>
-                    {' '}
-                    Suppliers & PI
-                  </strong>{' '}
+                  <strong> Suppliers & PI </strong>
                   and confirm the draft PI.
                 </div>
               </div>
 
             </div>
 
-            {/* Error */}
+            {/* ERROR */}
 
             {error && (
               <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-3 flex gap-2">
@@ -1059,7 +798,7 @@ export default function Outward() {
               </div>
             )}
 
-            {/* Success */}
+            {/* SUCCESS */}
 
             {confirmation && (
               <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-3 flex gap-2">
@@ -1076,7 +815,7 @@ export default function Outward() {
               </div>
             )}
 
-            {/* Submit */}
+            {/* SUBMIT */}
 
             <button
               type="button"
@@ -1084,8 +823,7 @@ export default function Outward() {
               onClick={submit}
               disabled={
                 saving ||
-                selectedRolls.length ===
-                  0 ||
+                selectedRolls.length === 0 ||
                 !customerId
               }
             >
@@ -1106,7 +844,6 @@ export default function Outward() {
             </button>
 
           </div>
-
         </div>
 
       </div>

@@ -1,6 +1,6 @@
 const pool = require('../config/db');
 
-const VALID_CATEGORIES = ['ESSENTIAL', 'PREMIUM'];
+const VALID_CATEGORIES = ['ESSENTIAL', 'PREMIUM', 'PEGASUS'];
 
 /* =========================================================
    GET ALL PRODUCTS
@@ -96,7 +96,7 @@ const addProduct = async (req, res) => {
         if (!VALID_CATEGORIES.includes(normalizedCategory)) {
             return res.status(400).json({
                 success: false,
-                message: 'Category must be ESSENTIAL or PREMIUM'
+                message: 'Category must be ESSENTIAL, PREMIUM or PEGASUS'
             });
         }
 
@@ -180,7 +180,7 @@ const updateProduct = async (req, res) => {
         if (!VALID_CATEGORIES.includes(normalizedCategory)) {
             return res.status(400).json({
                 success: false,
-                message: 'Category must be ESSENTIAL or PREMIUM'
+                message: 'Category must be ESSENTIAL, PREMIUM or PEGASUS'
             });
         }
 

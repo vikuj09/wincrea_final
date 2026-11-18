@@ -520,11 +520,10 @@ export default function Inward() {
 
 
       if (
-        category !== 'ESSENTIAL' &&
-        category !== 'PREMIUM'
-      ) {
-        return 'Category must be ESSENTIAL or PREMIUM.';
-      }
+            !['ESSENTIAL', 'PREMIUM', 'PEGASUS'].includes(category)
+          ) {
+            return 'Category must be ESSENTIAL, PREMIUM or PEGASUS.';
+          }
 
       if (!sku) {
         return 'SKU is required.';
@@ -1759,7 +1758,7 @@ export default function Inward() {
                 </p>
 
                 <p className="text-[11px] text-ink-700/40 mt-2">
-                  One row = one physical roll. Category must be ESSENTIAL or PREMIUM. The supplier is selected above and is applied to the entire import.
+                  One row = one physical roll. Category must be ESSENTIAL, PREMIUM or PEGASUS. The supplier is selected above and is applied to the entire import.
                 </p>
 
               </div>
@@ -2640,6 +2639,10 @@ export default function Inward() {
 
                         <option value="PREMIUM">
                           Premium
+                        </option>
+
+                        <option value="PEGASUS">
+                          Pegasus
                         </option>
 
                       </select>

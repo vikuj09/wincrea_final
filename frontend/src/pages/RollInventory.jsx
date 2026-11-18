@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import { Download, Share2 } from 'lucide-react';
 
@@ -18,41 +19,105 @@ const STATUS_FILTERS = [
   'EMPTY',
 ];
 
-export default function RollInventory() {
+// ============================================================
+// CATEGORY BADGE
+// ============================================================
 
+function CategoryBadge({ category }) {
+  const normalized = String(
+    category || 'ESSENTIAL'
+  ).toUpperCase();
+
+  const styles = {
+    ESSENTIAL: `
+      bg-slate-100
+      text-slate-700
+      border-slate-200
+    `,
+    PREMIUM: `
+      bg-gradient-to-r
+      from-violet-100
+      via-fuchsia-100
+      to-violet-100
+      text-violet-800
+      border-violet-200
+      shadow-sm
+    `,
+    PEGASUS: `
+      bg-gradient-to-r
+      from-amber-100
+      via-yellow-50
+      to-amber-100
+      text-amber-800
+      border-amber-200
+      shadow-sm
+    `,
+  };
+
+  return (
+    <span
+      className={`
+        inline-flex
+        items-center
+        gap-1.5
+        px-3
+        py-1.5
+        rounded-full
+        text-[11px]
+        font-semibold
+        tracking-[0.08em]
+        border
+        ${styles[normalized] || styles.ESSENTIAL}
+      `}
+    >
+      {normalized === 'PREMIUM' && (
+        <span className="text-[9px] text-violet-600">
+          ◆
+        </span>
+      )}
+
+      {normalized === 'PEGASUS' && (
+        <span className="text-[9px] text-amber-600">
+          ✦
+        </span>
+      )}
+
+      {normalized === 'ESSENTIAL' && (
+        <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+      )}
+
+      {normalized}
+    </span>
+  );
+}
+
+// ============================================================
+// ROLL INVENTORY
+// ============================================================
+
+export default function RollInventory() {
   const {
-    rolls,
-    products,
+    rolls = [],
+    products = [],
     createShareLink,
   } = useApp();
 
   const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] =
-    useState('All');
-
-  const [productFilter, setProductFilter] =
-    useState('All');
-
-  const [sharing, setSharing] =
-    useState(false);
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [productFilter, setProductFilter] = useState('All');
+  const [sharing, setSharing] = useState(false);
 
   // ============================================================
   // SHARE ROLL INVENTORY
   // ============================================================
 
   async function handleShare() {
-
     try {
-
       setSharing(true);
 
-      const result =
-        await createShareLink(
-          'ROLLS'
-        );
+      const result = await createShareLink('ROLLS');
 
-      const token =
-        result?.token;
+      const token = result?.token;
 
       if (!token) {
         throw new Error(
@@ -64,26 +129,18 @@ export default function RollInventory() {
         `${window.location.origin}/shared/rolls/${token}`;
 
       try {
-
-        await navigator.clipboard.writeText(
-          url
-        );
+        await navigator.clipboard.writeText(url);
 
         alert(
           'Roll Inventory share link copied to clipboard.'
         );
-
       } catch (_) {
-
         window.prompt(
           'Copy this Roll Inventory share link:',
           url
         );
-
       }
-
     } catch (error) {
-
       console.error(
         'Share Roll Inventory failed:',
         error
@@ -93,14 +150,10 @@ export default function RollInventory() {
         error?.message ||
         'Failed to create share link.'
       );
-
     } finally {
-
       setSharing(false);
-
     }
   }
-
 
   // ============================================================
   // PRODUCT MAP
@@ -110,7 +163,7 @@ export default function RollInventory() {
     () =>
       Object.fromEntries(
         products.map((p) => [
-          p.id,
+          Number(p.id),
           p,
         ])
       ),
@@ -122,12 +175,9 @@ export default function RollInventory() {
   // ============================================================
 
   const filtered = useMemo(() => {
-
-    const term =
-      query.trim().toLowerCase();
+    const term = query.trim().toLowerCase();
 
     return rolls.filter((r) => {
-
       // Status filter
       if (
         statusFilter !== 'All' &&
@@ -139,28 +189,22 @@ export default function RollInventory() {
       // Product filter
       if (
         productFilter !== 'All' &&
-        String(r.productId) !==
-          String(productFilter)
+        String(r.productId) !== String(productFilter)
       ) {
         return false;
       }
 
       // Search
-      if (!term) {
-        return true;
-      }
+      if (!term) return true;
 
-      const product =
-        productMap[r.productId];
+      const product = productMap[Number(r.productId)];
 
       return (
         String(r.rollId || '')
           .toLowerCase()
           .includes(term) ||
 
-        String(
-          product?.sku || r.sku || ''
-        )
+        String(product?.sku || r.sku || '')
           .toLowerCase()
           .includes(term) ||
 
@@ -172,10 +216,7 @@ export default function RollInventory() {
           .toLowerCase()
           .includes(term) ||
 
-        String(
-          product?.category ||
-          ''
-        )
+        String(product?.category || '')
           .toLowerCase()
           .includes(term) ||
 
@@ -187,9 +228,7 @@ export default function RollInventory() {
           .toLowerCase()
           .includes(term)
       );
-
     });
-
   }, [
     rolls,
     query,
@@ -199,83 +238,10 @@ export default function RollInventory() {
   ]);
 
   // ============================================================
-  // CATEGORY BADGE
-  // ============================================================
-
-  function CategoryBadge({ category }) {
-
-    const normalized =
-      String(
-        category || 'ESSENTIAL'
-      ).toUpperCase();
-
-    const isPremium =
-      normalized === 'PREMIUM';
-
-    if (isPremium) {
-      return (
-        <span
-          className="
-            inline-flex items-center gap-1.5
-            px-3 py-1.5
-            rounded-full
-            text-[11px] font-semibold
-            tracking-[0.08em]
-            bg-gradient-to-r
-            from-violet-100
-            via-fuchsia-100
-            to-violet-100
-            text-violet-800
-            border border-violet-200
-            shadow-sm
-          "
-        >
-          <span
-            className="
-              text-[9px]
-              text-violet-600
-            "
-          >
-            ◆
-          </span>
-
-          PREMIUM
-        </span>
-      );
-    }
-
-    return (
-      <span
-        className="
-          inline-flex items-center gap-1.5
-          px-3 py-1.5
-          rounded-full
-          text-[11px] font-semibold
-          tracking-[0.08em]
-          bg-slate-100
-          text-slate-700
-          border border-slate-200
-        "
-      >
-        <span
-          className="
-            w-1.5 h-1.5
-            rounded-full
-            bg-slate-500
-          "
-        />
-
-        ESSENTIAL
-      </span>
-    );
-  }
-
-  // ============================================================
   // TABLE
   // ============================================================
 
   const columns = [
-
     {
       key: 'rollId',
       header: 'Roll ID',
@@ -290,8 +256,7 @@ export default function RollInventory() {
       header: 'Product',
 
       render: (r) =>
-        productMap[r.productId]
-          ?.name ||
+        productMap[Number(r.productId)]?.name ||
         r.productName ||
         '—',
     },
@@ -302,35 +267,30 @@ export default function RollInventory() {
       sortable: true,
 
       sortValue: (r) =>
-        productMap[r.productId]?.sku ||
+        productMap[Number(r.productId)]?.sku ||
         r.sku ||
         '',
 
       render: (r) =>
-        productMap[r.productId]?.sku ||
+        productMap[Number(r.productId)]?.sku ||
         r.sku ||
         '—',
     },
 
-    // ----------------------------------------------------------
     // CATEGORY
-    // ----------------------------------------------------------
-
     {
       key: 'category',
       header: 'Category',
       sortable: true,
 
       sortValue: (r) =>
-        productMap[r.productId]
-          ?.category ||
+        productMap[Number(r.productId)]?.category ||
         'ESSENTIAL',
 
       render: (r) => (
         <CategoryBadge
           category={
-            productMap[r.productId]
-              ?.category ||
+            productMap[Number(r.productId)]?.category ||
             'ESSENTIAL'
           }
         />
@@ -342,8 +302,7 @@ export default function RollInventory() {
       header: 'Color',
 
       render: (r) =>
-        productMap[r.productId]
-          ?.color ||
+        productMap[Number(r.productId)]?.color ||
         r.color ||
         '—',
     },
@@ -376,14 +335,10 @@ export default function RollInventory() {
       sortable: true,
 
       sortValue: (r) =>
-        Number(
-          r.remainingLength || 0
-        ),
+        Number(r.remainingLength || 0),
 
       render: (r) =>
-        `${Number(
-          r.remainingLength || 0
-        )} m`,
+        `${Number(r.remainingLength || 0)} m`,
     },
 
     {
@@ -392,11 +347,7 @@ export default function RollInventory() {
       sortable: true,
 
       render: (r) => (
-        <Badge
-          tone={statusTone(
-            r.status
-          )}
-        >
+        <Badge tone={statusTone(r.status)}>
           {r.status}
         </Badge>
       ),
@@ -412,20 +363,16 @@ export default function RollInventory() {
 
       render: (r) =>
         r.createdAt
-          ? formatDate(
-              r.createdAt
-            )
+          ? formatDate(r.createdAt)
           : '—',
     },
-
   ];
 
   // ============================================================
-  // EXPORT
+  // EXPORT CSV
   // ============================================================
 
   function handleExport() {
-
     exportToCsv(
       'roll-inventory.csv',
       filtered,
@@ -440,9 +387,7 @@ export default function RollInventory() {
           header: 'Product',
 
           value: (r) =>
-            productMap[
-              r.productId
-            ]?.name ||
+            productMap[Number(r.productId)]?.name ||
             r.productName ||
             '',
         },
@@ -452,9 +397,7 @@ export default function RollInventory() {
           header: 'SKU',
 
           value: (r) =>
-            productMap[
-              r.productId
-            ]?.sku ||
+            productMap[Number(r.productId)]?.sku ||
             r.sku ||
             '',
         },
@@ -464,9 +407,7 @@ export default function RollInventory() {
           header: 'Category',
 
           value: (r) =>
-            productMap[
-              r.productId
-            ]?.category ||
+            productMap[Number(r.productId)]?.category ||
             'ESSENTIAL',
         },
 
@@ -475,9 +416,7 @@ export default function RollInventory() {
           header: 'Color',
 
           value: (r) =>
-            productMap[
-              r.productId
-            ]?.color ||
+            productMap[Number(r.productId)]?.color ||
             r.color ||
             '',
         },
@@ -523,22 +462,17 @@ export default function RollInventory() {
       {/* HEADER */}
 
       <div className="flex items-center justify-between">
-
         <div>
-
           <h1 className="font-display text-2xl">
             Roll Inventory
           </h1>
 
           <p className="text-sm text-ink-700/60 mt-1">
-            Every individual roll,
-            searchable by ID or product.
+            Every individual roll, searchable by ID or product.
           </p>
-
         </div>
 
         <div className="flex items-center gap-2">
-
           <button
             type="button"
             className="btn-secondary"
@@ -546,27 +480,26 @@ export default function RollInventory() {
             disabled={sharing}
           >
             <Share2 size={15} />
+
             {sharing
               ? 'Creating Link...'
               : 'Share'}
           </button>
 
           <button
+            type="button"
             className="btn-secondary"
             onClick={handleExport}
           >
             <Download size={15} />
             Export CSV
           </button>
-
         </div>
-
       </div>
 
       {/* FILTERS */}
 
       <div className="flex flex-wrap gap-3 items-center">
-
         <SearchInput
           value={query}
           onChange={setQuery}
@@ -580,23 +513,14 @@ export default function RollInventory() {
           className="input w-auto"
           value={statusFilter}
           onChange={(e) =>
-            setStatusFilter(
-              e.target.value
-            )
+            setStatusFilter(e.target.value)
           }
         >
-
-          {STATUS_FILTERS.map(
-            (status) => (
-              <option
-                key={status}
-                value={status}
-              >
-                {status}
-              </option>
-            )
-          )}
-
+          {STATUS_FILTERS.map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
         </select>
 
         {/* PRODUCT */}
@@ -605,42 +529,32 @@ export default function RollInventory() {
           className="input w-auto"
           value={productFilter}
           onChange={(e) =>
-            setProductFilter(
-              e.target.value
-            )
+            setProductFilter(e.target.value)
           }
         >
-
           <option value="All">
             All products
           </option>
 
           {products.map((p) => (
-            <option
-              key={p.id}
-              value={p.id}
-            >
+            <option key={p.id} value={p.id}>
               {p.sku}
             </option>
           ))}
-
         </select>
 
         <span className="text-xs text-ink-700/50 ml-auto">
           {filtered.length} rolls
         </span>
-
       </div>
 
       {/* TABLE */}
 
       <div className="card">
-
         <DataTable
           columns={columns}
           rows={filtered}
         />
-
       </div>
 
     </div>

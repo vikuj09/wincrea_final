@@ -201,64 +201,58 @@ export default function ProductMaster() {
 
   function CategoryBadge({ category }) {
 
-    const isPremium =
-      String(category || 'ESSENTIAL').toUpperCase() ===
-      'PREMIUM';
+  const value = String(
+    category || 'ESSENTIAL'
+  ).toUpperCase();
 
-    if (isPremium) {
-      return (
-        <span
-          className="
-            inline-flex items-center gap-1.5
-            px-3 py-1.5
-            rounded-full
-            text-[11px] font-semibold
-            tracking-[0.08em]
-            bg-gradient-to-r from-violet-100 via-fuchsia-100 to-violet-100
-            text-violet-800
-            border border-violet-200
-            shadow-sm
-          "
-        >
-          <span
-            className="
-              text-[9px]
-              text-violet-600
-            "
-          >
-            ◆
-          </span>
+  const styles = {
+    ESSENTIAL: `
+      bg-slate-100
+      text-slate-700
+      border-slate-200
+    `,
+    PREMIUM: `
+      bg-gradient-to-r
+      from-violet-100
+      via-fuchsia-100
+      to-violet-100
+      text-violet-800
+      border-violet-200
+      shadow-sm
+    `,
+    PEGASUS: `
+      bg-gradient-to-r
+      from-amber-100
+      via-yellow-50
+      to-amber-100
+      text-amber-800
+      border-amber-200
+      shadow-sm
+    `,
+  };
 
-          PREMIUM
-        </span>
-      );
-    }
-
-    return (
-      <span
-        className="
-          inline-flex items-center gap-1.5
-          px-3 py-1.5
-          rounded-full
-          text-[11px] font-semibold
-          tracking-[0.08em]
-          bg-slate-100
-          text-slate-700
-          border border-slate-200
-        "
-      >
-        <span
-          className="
-            w-1.5 h-1.5
-            rounded-full
-            bg-slate-500
-          "
-        />
-
-        ESSENTIAL
-      </span>
-    );
-  }
+  return (
+    <span
+      className={`
+        inline-flex
+        items-center
+        gap-1.5
+        px-3
+        py-1.5
+        rounded-full
+        text-[11px]
+        font-semibold
+        tracking-[0.08em]
+        border
+        ${styles[value] || styles.ESSENTIAL}
+      `}
+    >
+      {value === 'PREMIUM' && '◆'}
+      {value === 'PEGASUS' && '✦'}
+      {value}
+    </span>
+  );
+}
 
   // ------------------------------------------------------------
   // TABLE
@@ -558,6 +552,10 @@ export default function ProductMaster() {
 
               <option value="PREMIUM">
                 Premium
+              </option>
+
+              <option value="PEGASUS">
+                Pegasus
               </option>
 
             </select>

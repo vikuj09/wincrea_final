@@ -12,21 +12,40 @@
 
 const SERIES = ['LS1111', 'LS1112', 'LS1113', 'LS1114', 'LS1115', 'LS1116', 'LS1117', 'LS1118', 'LS1119', 'LS1120', 'LS1121', 'LS1122'];
 
+
 export function buildProducts() {
-  return SERIES.map((code, i) => ({
-    id: `PRD-${code}`,
-    sku: code,
-    name: `Wincrea Essential ${code}`,
-    collection: 'Wincrea Essential',
-    width: '320 CM',
-    color: PLACEHOLDER_COLORS[i % PLACEHOLDER_COLORS.length],
-    composition: '100% Polyester Blackout',
-    ratePerMeter: 210 + (i % 5) * 15,
-    reorderLevel: 150 + (i % 4) * 50,
-    category: i < 6 ? 'Blackout' : 'Sheer',
-    createdAt: new Date(Date.now() - 200 * 86400000).toISOString(),
-  }));
+  return SERIES.map((code, i) => {
+    const category =
+      i < 4
+        ? 'ESSENTIAL'
+        : i < 8
+          ? 'PREMIUM'
+          : 'PEGASUS';
+
+    const ratePerMeter = {
+      ESSENTIAL: 310,
+      PREMIUM: 500,
+      PEGASUS: 586,
+    }[category];
+
+    return {
+      id: `PRD-${code}`,
+      sku: code,
+      name: `Wincrea ${category} ${code}`,
+      collection: `Wincrea ${category}`,
+      width: '320 CM',
+      color: PLACEHOLDER_COLORS[i % PLACEHOLDER_COLORS.length],
+      composition: '100% Polyester Blackout',
+      ratePerMeter,
+      reorderLevel: 150 + (i % 4) * 50,
+      category,
+      createdAt: new Date(
+        Date.now() - 200 * 86400000
+      ).toISOString(),
+    };
+  });
 }
+
 
 const PLACEHOLDER_COLORS = [
   'Ivory', 'Sand', 'Slate', 'Charcoal', 'Olive', 'Rust',

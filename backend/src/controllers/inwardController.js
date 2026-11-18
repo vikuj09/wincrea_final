@@ -19,6 +19,7 @@ const REQUIRED_HEADERS = [
 
 const ESSENTIAL_RATE = 310;
 const PREMIUM_RATE = 500;
+const PEGASUS_RATE = 586;
 
 
 // ============================================================
@@ -51,13 +52,12 @@ function normalizeCategory(value) {
         clean(value).toUpperCase();
 
     if (
-        category !== 'ESSENTIAL' &&
-        category !== 'PREMIUM'
-    ) {
-        throw new Error(
-            'Product category must be ESSENTIAL or PREMIUM.'
-        );
-    }
+    !['ESSENTIAL', 'PREMIUM', 'PEGASUS'].includes(category)
+) {
+    throw new Error(
+        'Product category must be ESSENTIAL, PREMIUM or PEGASUS.'
+    );
+}
 
     return category;
 }
@@ -93,9 +93,11 @@ function parseNumber(value) {
 }
 
 
-function getRateForCategory(
-    category
-) {
+function getRateForCategory(category) {
+
+    if (category === 'PEGASUS') {
+        return PEGASUS_RATE;
+    }
 
     return category === 'PREMIUM'
         ? PREMIUM_RATE
@@ -392,18 +394,15 @@ function parseExcelWorkbook(
             // --------------------------------------------------
 
             if (
-                category !==
-                    'ESSENTIAL' &&
-                category !==
-                    'PREMIUM'
-            ) {
+    !['ESSENTIAL', 'PREMIUM', 'PEGASUS'].includes(category)
+) {
 
-                errors.push(
-                    `Row ${excelRow}: Category must be ESSENTIAL or PREMIUM.`
-                );
+    errors.push(
+        `Row ${excelRow}: Category must be ESSENTIAL, PREMIUM or PEGASUS.`
+    );
 
-                return;
-            }
+    return;
+}
 
 
             // --------------------------------------------------
@@ -694,6 +693,13 @@ function parseExcelWorkbook(
                 'PREMIUM'
         );
 
+    const pegasusRows =
+    importedRows.filter(
+        (row) =>
+            row.category ===
+            'PEGASUS'
+    );
+
 
     const totalMeters =
         importedRows.reduce(
@@ -736,6 +742,13 @@ function parseExcelWorkbook(
             0
         );
 
+    const pegasusMeters =
+    pegasusRows.reduce(
+        (total, row) =>
+            total + Number(row.length),
+        0
+    );
+
 
     return {
 
@@ -763,6 +776,10 @@ function parseExcelWorkbook(
                 premiumRows.length,
 
             premiumMeters,
+
+            pegasusRolls: pegasusRows.length,
+
+            pegasusMeters,
 
         },
 
