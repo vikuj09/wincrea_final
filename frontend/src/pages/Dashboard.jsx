@@ -138,41 +138,18 @@ export default function Dashboard() {
   // ============================================================
 
   const todayOut = useMemo(() => {
-    return transactions
-      .filter((t) => {
-        const type =
-          String(
-            t.transaction_type ||
-            ''
-          ).toUpperCase();
+  return transactions
+    .filter((t) => {
+      const type = String(t.transaction_type || '').toUpperCase();
+      if (type !== 'OUTWARD') return false;
 
-        if (type !== 'OUTWARD') {
-          return false;
-        }
+      const createdAt = t.created_at ?? t.createdAt ?? null;
+      if (!createdAt) return false;
 
-        const createdAt =
-          t.created_at ??
-          t.createdAt ??
-          null;
-
-        if (!createdAt) {
-          return false;
-        }
-
-        return isSameDay(
-          createdAt
-        );
-      })
-      .reduce(
-        (total, t) =>
-          total +
-          Number(
-            t.quantity ??
-            0
-          ),
-        0
-      );
-  }, [transactions]);
+      return isSameDay(createdAt);
+    })
+    .reduce((total, t) => total + Number(t.total_quantity ?? 0), 0);
+}, [transactions]);
 
   // ============================================================
   // REORDER ALERTS
