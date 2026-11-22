@@ -1380,7 +1380,63 @@ async function cancelProformaInvoice(
 // EXPORTS
 // ============================================================
 
+async function updateProformaInvoiceRates(req, res) {
+  let connection;
+  try {
+    const id = Number(req.params.id);
+    const items = req.body.items;
+    if (!Number.isInteger(id) || id <= 0 || !Array.isArray(items) || !items.length) {
+      return res.status(400).json({ message: 'A valid PI and item rates are required.' });
+    }
+    const seen = new Set();
+    for (const item of items) {
+      const itemId = Number(item.id);
+      const rate = Number(item.ratePerMeter);
+      if (!Number.isInteger(itemId) || itemId <= 0 || seen.has(itemId) ||
+          !['number', 'string'].includes(typeof item.ratePerMeter) ||
+          String(item.ratePerMeter).trim() === '' ||
+          !Number.isFinite(rate) || rate < 0 || rate > 99999999.99 ||
+          Math.abs(rate * 100 - Math.round(rate * 100)) > 0.000001) {
+        return res.status(400).json({ message: 'Each rate must be a non-negative amount with at most two decimal places.' });
+      }
+      seen.add(itemId);
+    }
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+    const [invoices] = await connection.query(
+      'SELECT id, status FROM proforma_invoices WHERE id = ? FOR UPDATE', [id]
+    );
+    if (!invoices.length || invoices[0].status !== 'DRAFT') {
+      await connection.rollback();
+      return res.status(invoices.length ? 409 : 404).json({ message: 'Only existing draft PIs can have their rates edited.' });
+    }
+    const [rows] = await connection.query(
+      'SELECT id FROM proforma_invoice_items WHERE proforma_invoice_id = ? FOR UPDATE', [id]
+    );
+    if (items.some(item => !rows.some(row => Number(row.id) === Number(item.id)))) {
+      await connection.rollback();
+      return res.status(400).json({ message: 'An item does not belong to this PI.' });
+    }
+    for (const item of items) {
+      await connection.query(
+        'UPDATE proforma_invoice_items SET rate_per_meter = ? WHERE id = ? AND proforma_invoice_id = ?',
+        [Number(item.ratePerMeter), Number(item.id), id]
+      );
+    }
+    await connection.query('UPDATE proforma_invoices SET updated_at = CURRENT_TIMESTAMP WHERE id = ?', [id]);
+    await connection.commit();
+    return res.json({ success: true, message: 'PI rates saved.' });
+  } catch (error) {
+    if (connection) await connection.rollback();
+    console.error('Update PI rates error:', error);
+    return res.status(500).json({ message: 'Failed to save PI rates.' });
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
 module.exports = {
+  updateProformaInvoiceRates,
   getProformaInvoices,
   getProformaInvoiceById,
   createProformaInvoice,

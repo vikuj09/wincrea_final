@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 
 import { useApp } from '../context/AppContext';
+import { updateProformaInvoiceRates } from '../api/proformaInvoiceApi';
 
 import DataTable from '../components/common/DataTable';
 import Badge from '../components/common/Badge';
@@ -1509,6 +1510,7 @@ export default function Suppliers() {
     confirmProformaInvoice,
     cancelProformaInvoice,
     loadProformaInvoiceById,
+    loadProformaInvoices,
 
     currentUser,
   } = useApp();
@@ -1532,6 +1534,32 @@ export default function Suppliers() {
     viewPI,
     setViewPI,
   ] = useState(null);
+
+  const [ratesDirty, setRatesDirty] = useState(false);
+  const [rateError, setRateError] = useState('');
+  const [savingRates, setSavingRates] = useState(false);
+  const viewSubtotal = (viewPI?.items || []).reduce(
+    (sum, item) => sum + Number(item.quantity || 0) * Number(item.ratePerMeter || 0), 0
+  );
+  const money = (amount) => Number(amount).toLocaleString('en-IN', {
+    style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2,
+  });
+
+  async function saveRates() {
+    setSavingRates(true);
+    setRateError('');
+    try {
+      await updateProformaInvoiceRates(viewPI.id, viewPI.items.map(item => ({
+        id: item.id, ratePerMeter: item.ratePerMeter,
+      })));
+      setRatesDirty(false);
+      await loadProformaInvoices();
+    } catch (err) {
+      setRateError(err.message || 'Failed to save rates.');
+    } finally {
+      setSavingRates(false);
+    }
+  }
 
   const [
     supplierForm,
@@ -2555,6 +2583,8 @@ export default function Suppliers() {
           pi.id
         );
 
+      setRatesDirty(false);
+      setRateError('');
       setViewPI(
         fullPI
       );
@@ -2672,8 +2702,7 @@ export default function Suppliers() {
             <div className="text-xs text-ink-700/45">
               {formatMeters(
                 total
-              )}{' '}
-              m
+              )}
             </div>
 
           </div>
@@ -2708,9 +2737,7 @@ export default function Suppliers() {
             0
           );
 
-        return formatCurrency(
-          subtotal * 1.05
-        );
+        return money(subtotal * 1.05);
       },
     },
 
@@ -4294,7 +4321,7 @@ export default function Suppliers() {
           <div
             className="absolute inset-0 bg-ink-950/55 backdrop-blur-sm"
             onClick={() =>
-              setViewPI(null)
+              !savingRates && setViewPI(null)
             }
           />
 
@@ -4347,6 +4374,8 @@ export default function Suppliers() {
                 <button
                   type="button"
                   className="btn-secondary"
+                  disabled={ratesDirty || savingRates}
+                  title={ratesDirty ? "Save rates before printing" : undefined}
                   onClick={() =>
                     printPI(
                       viewPI,
@@ -4372,7 +4401,7 @@ export default function Suppliers() {
                   type="button"
                   className="btn-ghost"
                   onClick={() =>
-                    setViewPI(null)
+                    !savingRates && setViewPI(null)
                   }
                 >
                   Close
@@ -4531,28 +4560,36 @@ export default function Suppliers() {
                               {formatMeters(
                                 item.quantity
                               )}
-                              {' '}
-                              m
+
                             </td>
 
                             <td className="table-cell">
-                              ₹
-                              {Number(
-                                item.ratePerMeter ||
-                                0
-                              ).toLocaleString(
-                                'en-IN',
-                                {
-                                  minimumFractionDigits:
-                                    2,
-                                  maximumFractionDigits:
-                                    2,
-                                }
-                              )}
+                              {viewPI.status === 'DRAFT' ? (
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="99999999.99"
+                                  step="0.01"
+                                  aria-label={`Rate per metre for ${item.rollNumber || item.sku}`}
+                                  className="input w-28"
+                                  value={item.ratePerMeter}
+                                  disabled={savingRates || saving}
+                                  onChange={(event) => {
+                                    const value = event.target.value;
+                                    setViewPI(previous => ({
+                                      ...previous,
+                                      items: previous.items.map(row => row.id === item.id
+                                        ? { ...row, ratePerMeter: value } : row),
+                                    }));
+                                    setRatesDirty(true);
+                                    setRateError('');
+                                  }}
+                                />
+                              ) : money(item.ratePerMeter || 0)}
                             </td>
 
                             <td className="table-cell font-medium">
-                              {formatCurrency(
+                              {money(
                                 Number(
                                   item.quantity ||
                                   0
@@ -4570,13 +4607,37 @@ export default function Suppliers() {
                       )}
 
                     </tbody>
-
+                    <tfoot className="border-t border-ink-900/10">
+                      <tr>
+                        <th colSpan={6} className="table-cell text-right">Subtotal</th>
+                        <td className="table-cell font-medium">{money(viewSubtotal)}</td>
+                      </tr>
+                      <tr>
+                        <th colSpan={6} className="table-cell text-right">GST (5%)</th>
+                        <td className="table-cell">{money(viewSubtotal * 0.05)}</td>
+                      </tr>
+                      <tr className="bg-loom-50">
+                        <th colSpan={6} className="table-cell text-right">Total amount</th>
+                        <td className="table-cell font-semibold">{money(viewSubtotal * 1.05)}</td>
+                      </tr>
+                    </tfoot>
                   </table>
 
                 </div>
 
               </div>
 
+
+              {rateError && <p role="alert" className="text-sm text-red-600">{rateError}</p>}
+              {viewPI.status === 'DRAFT' && (
+                <div className="flex justify-end items-center gap-3">
+                  {ratesDirty && <span className="text-sm text-ink-700/60">Unsaved rate changes</span>}
+                  <button type="button" className="btn-primary" onClick={saveRates}
+                    disabled={!ratesDirty || savingRates || saving}>
+                    {savingRates ? 'Saving rates…' : 'Save rates'}
+                  </button>
+                </div>
+              )}
 
               {/* REMARKS */}
 
@@ -4615,7 +4676,7 @@ export default function Suppliers() {
                       )
                     }
                     disabled={
-                      saving
+                      saving || savingRates || ratesDirty
                     }
                   >
 
@@ -4637,7 +4698,7 @@ export default function Suppliers() {
                       )
                     }
                     disabled={
-                      saving
+                      saving || savingRates || ratesDirty
                     }
                   >
 

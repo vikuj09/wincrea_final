@@ -9,8 +9,12 @@ const {
   createProformaInvoice,
   confirmProformaInvoice,
   cancelProformaInvoice,
+  updateProformaInvoiceRates,
 } =
   require('../controllers/proformaInvoiceController');
+
+const { authenticateToken } = require('../middleware/authMiddleware');
+router.patch('/:id/rates', authenticateToken, updateProformaInvoiceRates);
 
 
 router.get(

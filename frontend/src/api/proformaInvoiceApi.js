@@ -1,6 +1,14 @@
 const API_BASE =
   (import.meta.env.VITE_API_URL || '/api');
 
+export async function updateProformaInvoiceRates(id, items) {
+  return parseResponse(await fetch(`${API_BASE}/proforma-invoices/${id}/rates`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ items }),
+  }));
+}
+
 
 // ============================================================
 // AUTH HEADERS

@@ -966,6 +966,7 @@ export function AppProvider({ children }) {
                       pi.itemsCount ??
                       0
                     ),
+                  items: Array.isArray(pi.items) ? pi.items : [],
                 })
               )
             : [];
