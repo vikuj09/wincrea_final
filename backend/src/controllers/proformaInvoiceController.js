@@ -1406,9 +1406,9 @@ async function updateProformaInvoiceRates(req, res) {
     const [invoices] = await connection.query(
       'SELECT id, status FROM proforma_invoices WHERE id = ? FOR UPDATE', [id]
     );
-    if (!invoices.length || invoices[0].status !== 'DRAFT') {
+    if (!invoices.length || !['DRAFT', 'CONFIRMED'].includes(invoices[0].status)) {
       await connection.rollback();
-      return res.status(invoices.length ? 409 : 404).json({ message: 'Only existing draft PIs can have their rates edited.' });
+      return res.status(invoices.length ? 409 : 404).json({ message: 'Rates can only be edited on draft or confirmed PIs.' });
     }
     const [rows] = await connection.query(
       'SELECT id FROM proforma_invoice_items WHERE proforma_invoice_id = ? FOR UPDATE', [id]

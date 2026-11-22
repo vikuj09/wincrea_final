@@ -1538,6 +1538,9 @@ export default function Suppliers() {
   const [ratesDirty, setRatesDirty] = useState(false);
   const [rateError, setRateError] = useState('');
   const [savingRates, setSavingRates] = useState(false);
+  const canEditRates = ['DRAFT', 'CONFIRMED'].includes(
+    String(viewPI?.status || '').toUpperCase()
+  );
   const viewSubtotal = (viewPI?.items || []).reduce(
     (sum, item) => sum + Number(item.quantity || 0) * Number(item.ratePerMeter || 0), 0
   );
@@ -4564,7 +4567,7 @@ export default function Suppliers() {
                             </td>
 
                             <td className="table-cell">
-                              {viewPI.status === 'DRAFT' ? (
+                              {canEditRates ? (
                                 <input
                                   type="number"
                                   min="0"
@@ -4629,7 +4632,7 @@ export default function Suppliers() {
 
 
               {rateError && <p role="alert" className="text-sm text-red-600">{rateError}</p>}
-              {viewPI.status === 'DRAFT' && (
+              {canEditRates && (
                 <div className="flex justify-end items-center gap-3">
                   {ratesDirty && <span className="text-sm text-ink-700/60">Unsaved rate changes</span>}
                   <button type="button" className="btn-primary" onClick={saveRates}
