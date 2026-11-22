@@ -1,16 +1,9 @@
 
 const mysql = require('mysql2/promise');
-const fs = require('fs');
-const path = require('path');
+const { databaseTLS } = require('./tls');
 require('dotenv').config();
 
-const caPath =
-    process.env.DB_SSL_CA_FILE || path.join(__dirname, 'ca.pem');
-
-const sslConfig = {
-    ca: fs.readFileSync(caPath, 'utf8'),
-    rejectUnauthorized: true,
-};
+const sslConfig = databaseTLS();
 
 const pool = mysql.createPool({
     host: process.env.DB_HOST,

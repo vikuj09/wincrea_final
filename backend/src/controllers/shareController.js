@@ -520,10 +520,12 @@ async function disableShareLink(req, res) {
                 UPDATE share_links
                 SET
                     is_active = FALSE
-                WHERE id = ?
+                WHERE id = ? AND (created_by = ? OR ? = 'ADMIN')
                 `,
                 [
                     shareId,
+                    req.user.id,
+                    req.user.role,
                 ]
             );
 

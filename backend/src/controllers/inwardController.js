@@ -1,3 +1,4 @@
+const { temporaryNumber, finalizeNumber } = require('../utils/documentNumbers');
 const XLSX = require('xlsx');
 const pool = require('../config/db');
 
@@ -130,47 +131,6 @@ function headersMatch(
 }
 
 
-function generateTransactionNumber(
-    lastTransactionRows
-) {
-
-    let nextNumber = 1;
-
-    if (
-        Array.isArray(
-            lastTransactionRows
-        ) &&
-        lastTransactionRows.length > 0
-    ) {
-
-        const lastNumber =
-            String(
-                lastTransactionRows[0]
-                    .transaction_number ||
-                ''
-            );
-
-        const match =
-            lastNumber.match(
-                /IN-(\d+)/
-            );
-
-        if (match) {
-
-            nextNumber =
-                Number(
-                    match[1]
-                ) + 1;
-        }
-    }
-
-    return `IN-${String(
-        nextNumber
-    ).padStart(
-        5,
-        '0'
-    )}`;
-}
 
 
 // ============================================================
@@ -809,18 +769,16 @@ const createInward =
         res
     ) => {
 
-        const connection =
-            await pool.getConnection();
-
-
-        try {
+        let connection;
+  try {
+    connection = await pool.getConnection();
 
             const {
                 supplierId,
                 userId,
                 notes,
                 rolls,
-            } = req.body;
+            } = { ...req.body, userId: req.user.userId, createdBy: req.user.userId };
 
 
             // --------------------------------------------------
@@ -957,27 +915,7 @@ const createInward =
             // TRANSACTION NUMBER
             // --------------------------------------------------
 
-            const [
-                lastTransactionRows,
-            ] =
-                await connection.query(
-                    `
-                    SELECT
-                        transaction_number
-                    FROM transactions
-                    WHERE transaction_type =
-                        'INWARD'
-                    ORDER BY id DESC
-                    LIMIT 1
-                    FOR UPDATE
-                    `
-                );
-
-
-            const transactionNumber =
-                generateTransactionNumber(
-                    lastTransactionRows
-                );
+            let transactionNumber = temporaryNumber('IN');
 
 
             // --------------------------------------------------
@@ -1029,6 +967,7 @@ const createInward =
 
             const transactionId =
                 transactionResult.insertId;
+    transactionNumber = await finalizeNumber(connection, 'transaction', transactionId, 'IN');
 
 
             const createdRolls = [];
@@ -1557,7 +1496,7 @@ const createInward =
         } catch (error) {
 
             try {
-                await connection.rollback();
+                if (connection) await connection.rollback();
             } catch (_) {}
 
 
@@ -1583,7 +1522,7 @@ const createInward =
 
         } finally {
 
-            connection.release();
+            if (connection) connection.release();
 
         }
     };
@@ -1943,7 +1882,7 @@ const previewExcelInward =
         } finally {
 
             if (connection) {
-                connection.release();
+                if (connection) connection.release();
             }
 
         }
@@ -1966,11 +1905,9 @@ const createExcelInward =
         res
     ) => {
 
-        const connection =
-            await pool.getConnection();
-
-
-        try {
+        let connection;
+  try {
+    connection = await pool.getConnection();
 
             if (!req.file) {
 
@@ -1996,7 +1933,7 @@ const createExcelInward =
 
             const userId =
                 Number(
-                    req.body.userId
+                    req.user.userId
                 );
 
 
@@ -2127,27 +2064,7 @@ const createExcelInward =
             // TRANSACTION NUMBER
             // --------------------------------------------------
 
-            const [
-                lastTransactionRows,
-            ] =
-                await connection.query(
-                    `
-                    SELECT
-                        transaction_number
-                    FROM transactions
-                    WHERE transaction_type =
-                        'INWARD'
-                    ORDER BY id DESC
-                    LIMIT 1
-                    FOR UPDATE
-                    `
-                );
-
-
-            const transactionNumber =
-                generateTransactionNumber(
-                    lastTransactionRows
-                );
+            let transactionNumber = temporaryNumber('IN');
 
 
             // --------------------------------------------------
@@ -2432,6 +2349,7 @@ const createExcelInward =
 
             const transactionId =
                 transactionResult.insertId;
+    transactionNumber = await finalizeNumber(connection, 'transaction', transactionId, 'IN');
 
 
             // --------------------------------------------------
@@ -2680,7 +2598,7 @@ const createExcelInward =
         } catch (error) {
 
             try {
-                await connection.rollback();
+                if (connection) await connection.rollback();
             } catch (_) {}
 
 
@@ -2706,7 +2624,7 @@ const createExcelInward =
 
         } finally {
 
-            connection.release();
+            if (connection) connection.release();
 
         }
     };

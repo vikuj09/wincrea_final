@@ -16,17 +16,30 @@ const getRolls = async (req, res) => {
     r.status,
     r.created_at,
     r.updated_at,
+    r.batch, r.rack, r.bin, r.supplier_id, r.inward_date, r.hold_reason,
 
     outward.quantity AS outward_quantity,
     outward.customer_id,
     outward.customer_name,
-    outward.dispatched_at
+    outward.dispatched_at,
+    GREATEST(0, LEAST(
+      r.original_length - r.remaining_length,
+      COALESCE(outward.quantity, 0) - COALESCE((
+        SELECT SUM(return_item.quantity)
+        FROM transaction_items return_item
+        JOIN transactions return_tx ON return_tx.id = return_item.transaction_id
+        WHERE return_item.roll_id = r.id
+          AND return_tx.transaction_type = 'RETURN'
+          AND return_tx.id > outward.transaction_id
+      ), 0)
+    )) AS returnable_quantity
 
 FROM rolls r
 
 LEFT JOIN (
     SELECT
         ti.roll_id,
+        t.id AS transaction_id,
         ti.quantity,
         t.customer_id,
         c.name AS customer_name,

@@ -1,9 +1,9 @@
 const pool = require('../config/db');
 
 async function createAdjustment(req, res) {
-  const connection = await pool.getConnection();
-
+  let connection;
   try {
+    connection = await pool.getConnection();
     const {
       rollId,
       adjustmentType,
@@ -11,7 +11,7 @@ async function createAdjustment(req, res) {
       reason,
       notes,
       userId,
-    } = req.body;
+    } = { ...req.body, userId: req.user.userId, createdBy: req.user.userId };
 
     const numericRollId = Number(rollId);
     const numericQuantity = Number(quantity);
@@ -64,7 +64,7 @@ async function createAdjustment(req, res) {
     );
 
     if (rollRows.length === 0) {
-      await connection.rollback();
+      if (connection) await connection.rollback();
 
       return res.status(404).json({
         message: 'Roll not found',
@@ -87,7 +87,7 @@ async function createAdjustment(req, res) {
     }
 
     if (newLength < 0) {
-      await connection.rollback();
+      if (connection) await connection.rollback();
 
       return res.status(400).json({
         message: 'Adjustment cannot make remaining length negative',
@@ -100,7 +100,7 @@ async function createAdjustment(req, res) {
     const originalLength = Number(roll.original_length || 0);
 
     if (originalLength > 0 && newLength > originalLength) {
-      await connection.rollback();
+      if (connection) await connection.rollback();
 
       return res.status(400).json({
         message: 'Adjusted length cannot exceed original roll length',
@@ -171,7 +171,7 @@ async function createAdjustment(req, res) {
       },
     });
   } catch (error) {
-    await connection.rollback();
+    if (connection) await connection.rollback();
 
     console.error('createAdjustment error:', error);
 
@@ -180,7 +180,7 @@ async function createAdjustment(req, res) {
       error: error.message,
     });
   } finally {
-    connection.release();
+    if (connection) connection.release();
   }
 }
 

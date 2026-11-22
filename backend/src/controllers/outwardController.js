@@ -33,9 +33,9 @@ function temporaryPiNumber() {
 // proformaInvoiceController.confirmProformaInvoice
 // ------------------------------------------------------------
 exports.createOutwardDraft = async (req, res) => {
-  const connection = await db.getConnection();
-
+  let connection;
   try {
+    connection = await db.getConnection();
     const {
       customerId,
       userId,
@@ -44,7 +44,7 @@ exports.createOutwardDraft = async (req, res) => {
       remarks,
       notes,
       items,
-    } = req.body;
+    } = { ...req.body, userId: req.user.userId, createdBy: req.user.userId };
 
     // ----------------------------------------------------------
     // Basic validation
@@ -512,7 +512,7 @@ exports.createOutwardDraft = async (req, res) => {
       ),
     });
   } catch (error) {
-    await connection.rollback();
+    if (connection) await connection.rollback();
 
     console.error(
       'CREATE OUTWARD DRAFT ERROR:',
@@ -525,6 +525,6 @@ exports.createOutwardDraft = async (req, res) => {
         'Failed to create outward draft.',
     });
   } finally {
-    connection.release();
+    if (connection) connection.release();
   }
 };

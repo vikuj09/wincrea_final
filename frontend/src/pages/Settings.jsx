@@ -1,3 +1,4 @@
+import { apiFetch as fetch } from '../api/apiFetch';
 import React, { useState } from 'react';
 import {
   AlertTriangle,
@@ -63,6 +64,28 @@ export default function Settings() {
 
   const [confirmClear, setConfirmClear] =
     useState(false);
+
+  const [clearConfirmation, setClearConfirmation] = useState('');
+  const [clearingData, setClearingData] = useState(false);
+  const [clearError, setClearError] = useState('');
+  const [clearMessage, setClearMessage] = useState('');
+
+  async function handleClearData() {
+    if (clearingData || clearConfirmation !== 'CLEAR') return;
+    setClearingData(true);
+    setClearError('');
+    setClearMessage('');
+    try {
+      const result = await clearAll(clearConfirmation);
+      setClearMessage(result.message);
+      setConfirmClear(false);
+      setClearConfirmation('');
+    } catch (error) {
+      setClearError(error.message || 'Failed to clear inventory data.');
+    } finally {
+      setClearingData(false);
+    }
+  }
 
   const [showUserForm, setShowUserForm] =
     useState(false);
@@ -1493,8 +1516,11 @@ export default function Settings() {
 
 
             <p className="text-xs text-ink-700/50">
-              These actions affect locally stored browser data.
-              They cannot be undone.
+              Clear all data permanently deletes products, rolls, transactions,
+              adjustments, purchase orders, PIs, import history, and shared links
+              from the database for everyone. Customers, suppliers, users, and
+              account verification data are kept. This cannot be undone.
+              Reset &amp; Reseed only changes local sample data.
             </p>
 
 
@@ -1559,9 +1585,12 @@ export default function Settings() {
 
                 <button
                   className="btn-danger"
-                  onClick={() =>
-                    setConfirmClear(true)
-                  }
+                  onClick={() => {
+                    setClearError('');
+                    setClearMessage('');
+                    setClearConfirmation('');
+                    setConfirmClear(true);
+                  }}
                 >
                   Clear all data
                 </button>
@@ -1571,26 +1600,30 @@ export default function Settings() {
                 <div className="flex gap-2 items-center flex-wrap">
 
                   <span className="text-sm">
-                    Delete local browser data?
+                    Customers, suppliers, and users will be kept. Type CLEAR to confirm.
                   </span>
 
+                  <input
+                    className="input w-36"
+                    aria-label="Type CLEAR to confirm deletion"
+                    placeholder="Type CLEAR"
+                    value={clearConfirmation}
+                    disabled={clearingData}
+                    onChange={(event) => setClearConfirmation(event.target.value)}
+                    autoComplete="off"
+                  />
                   <button
+                    type="button"
                     className="btn-danger"
-                    onClick={() => {
-
-                      clearAll();
-
-                      setConfirmClear(
-                        false
-                      );
-
-                    }}
+                    onClick={handleClearData}
+                    disabled={clearingData || clearConfirmation !== 'CLEAR'}
                   >
-                    Confirm
+                    {clearingData ? 'Clearing…' : 'Confirm deletion'}
                   </button>
 
                   <button
                     className="btn-ghost"
+                    disabled={clearingData}
                     onClick={() =>
                       setConfirmClear(
                         false
@@ -1605,6 +1638,9 @@ export default function Settings() {
               )}
 
             </div>
+
+            {clearError && <p role="alert" className="text-sm text-red-600">{clearError}</p>}
+            {clearMessage && <p role="status" className="text-sm text-green-700">{clearMessage}</p>}
 
           </section>
 

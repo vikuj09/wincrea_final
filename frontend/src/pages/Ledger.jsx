@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from 'react';
-import { Download } from 'lucide-react';
+import { buildLedgerEntries, ledgerDate } from '../utils/ledger';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Download, RefreshCw } from 'lucide-react';
 
 import { useApp } from '../context/AppContext';
 import DataTable from '../components/common/DataTable';
 import SearchInput from '../components/common/SearchInput';
 import Badge from '../components/common/Badge';
+import StatCard from '../components/common/StatCard';
 
 import { formatDateTime } from '../utils/dateUtils';
 import { exportToCsv } from '../utils/csvExport';
@@ -40,6 +42,8 @@ export default function Ledger() {
   const {
     transactions,
     adjustments,
+    loadTransactions,
+    loadAdjustments,
   } = useApp();
 
   const [query, setQuery] = useState('');
@@ -47,146 +51,30 @@ export default function Ledger() {
   const [typeFilter, setTypeFilter] =
     useState('All');
 
-  // ============================================================
-  // NORMALIZE TRANSACTIONS + ADJUSTMENTS
-  // ============================================================
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const invalidRange = Boolean(fromDate && toDate && fromDate > toDate);
 
-  const ledgerEntries = useMemo(() => {
-    const normalTransactions =
-      Array.isArray(transactions)
-        ? transactions.map((t) => ({
-            id: `transaction-${t.id}-${t.item_id ?? 'x'}`,
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      await Promise.all([loadTransactions(), loadAdjustments()]);
+    } catch (error) {
+      setLoadError(error.message || 'Failed to refresh ledger.');
+    } finally {
+      setLoading(false);
+    }
+  }, [loadTransactions, loadAdjustments]);
 
-            transaction_number:
-              t.transaction_number || '—',
+  useEffect(() => { refresh(); }, [refresh]);
 
-            created_at:
-              t.created_at,
-
-            transaction_type:
-              t.transaction_type,
-
-            sku:
-              t.sku || '',
-
-            roll_number:
-              t.roll_number || '',
-
-            quantity:
-              Number(t.quantity) || 0,
-
-            party:
-              t.transaction_type === 'INWARD'
-                ? t.supplier_name || '—'
-                : t.customer_name || '—',
-
-            user_name:
-              t.user_name || '—',
-
-            notes:
-              t.notes || '—',
-
-            // Extra fields
-            adjustment_type: null,
-
-            adjustment_reason: null,
-
-            previous_length: null,
-
-            new_length: null,
-          }))
-        : [];
-
-    const adjustmentEntries =
-      Array.isArray(adjustments)
-        ? adjustments.map((a) => {
-            const type =
-              a.adjustmentType ||
-              a.adjustment_type;
-
-            const rawQuantity =
-              Number(a.quantity) || 0;
-
-            let signedQuantity =
-              rawQuantity;
-
-            if (type === 'DECREASE') {
-              signedQuantity =
-                -rawQuantity;
-            }
-
-            if (type === 'SET') {
-              signedQuantity =
-                Number(a.newLength) -
-                Number(a.previousLength);
-            }
-
-            return {
-              id: `adjustment-${a.id}`,
-
-              transaction_number:
-                `ADJ-${String(a.id).padStart(
-                  5,
-                  '0'
-                )}`,
-
-              created_at:
-                a.createdAt ||
-                a.created_at,
-
-              transaction_type:
-                'ADJUSTMENT',
-
-              sku:
-                a.sku || '',
-
-              roll_number:
-                a.rollNumber ||
-                a.roll_number ||
-                '',
-
-              quantity:
-                signedQuantity,
-
-              party:
-                '—',
-
-              user_name:
-                a.userName ||
-                a.user_name ||
-                '—',
-
-              notes:
-                a.notes || '—',
-
-              adjustment_type:
-                type,
-
-              adjustment_reason:
-                a.reason || '',
-
-              previous_length:
-                Number(
-                  a.previousLength ??
-                    a.previous_length ??
-                    0
-                ),
-
-              new_length:
-                Number(
-                  a.newLength ??
-                    a.new_length ??
-                    0
-                ),
-            };
-          })
-        : [];
-
-    return [
-      ...normalTransactions,
-      ...adjustmentEntries,
-    ];
-  }, [transactions, adjustments]);
+  const ledgerEntries = useMemo(
+    () => buildLedgerEntries(transactions, adjustments),
+    [transactions, adjustments]
+  );
 
   // ============================================================
   // FILTER
@@ -196,15 +84,21 @@ export default function Ledger() {
     const term =
       query.trim().toLowerCase();
 
+    if (invalidRange) return [];
+
     return [...ledgerEntries]
 
       .sort(
         (a, b) =>
-          new Date(b.created_at) -
-          new Date(a.created_at)
+          (Date.parse(b.created_at) || 0) -
+          (Date.parse(a.created_at) || 0)
       )
 
       .filter((entry) => {
+        const date = ledgerDate(entry.created_at);
+        if ((fromDate || toDate) && !date) return false;
+        if (fromDate && date < fromDate) return false;
+        if (toDate && date > toDate) return false;
         // Type filter
         if (
           typeFilter !== 'All' &&
@@ -277,7 +171,19 @@ export default function Ledger() {
     ledgerEntries,
     query,
     typeFilter,
+    fromDate,
+    toDate,
+    invalidRange,
   ]);
+
+  const totals = useMemo(() => filtered.reduce((sum, entry) => ({
+    inward: sum.inward + (entry.transaction_type === 'INWARD' ? entry.quantity : 0),
+    outward: sum.outward + (entry.transaction_type === 'OUTWARD' ? entry.quantity : 0),
+    returned: sum.returned + (entry.transaction_type === 'RETURN' ? entry.quantity : 0),
+    net: sum.net + entry.stock_change,
+  }), { inward: 0, outward: 0, returned: 0, net: 0 }), [filtered]);
+
+  const metres = value => `${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 2 })} m`;
 
   // ============================================================
   // TABLE COLUMNS
@@ -300,6 +206,7 @@ export default function Ledger() {
       key: 'created_at',
 
       header: 'Timestamp',
+      sortValue: entry => Date.parse(entry.created_at) || 0,
 
       sortable: true,
 
@@ -335,6 +242,8 @@ export default function Ledger() {
       render: (entry) =>
         entry.sku || '—',
     },
+
+    { key: 'product_name', header: 'Product', sortable: true, render: entry => entry.product_name || '—' },
 
     {
       key: 'roll_number',
@@ -386,6 +295,16 @@ export default function Ledger() {
 
         return `${quantity} m`;
       },
+    },
+
+    {
+      key: 'stock_change', header: 'Stock change', sortable: true,
+      render: entry => `${entry.stock_change > 0 ? '+' : ''}${metres(entry.stock_change)}`,
+    },
+    {
+      key: 'previous_length', header: 'Before → After',
+      render: entry => entry.transaction_type === 'ADJUSTMENT'
+        ? `${metres(entry.previous_length)} → ${metres(entry.new_length)}` : '—',
     },
 
     {
@@ -480,6 +399,10 @@ export default function Ledger() {
           header: 'SKU',
         },
 
+        { key: 'product_name', header: 'Product' },
+        { key: 'stock_change', header: 'Stock change (m)' },
+        { key: 'previous_length', header: 'Previous length (m)' },
+        { key: 'new_length', header: 'New length (m)' },
         {
           key: 'roll_number',
           header: 'Roll ID',
@@ -522,7 +445,7 @@ export default function Ledger() {
 
       {/* HEADER */}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap gap-3 items-center justify-between">
 
         <div>
           <h1 className="font-display text-2xl">
@@ -530,20 +453,28 @@ export default function Ledger() {
           </h1>
 
           <p className="text-sm text-ink-700/60 mt-1">
-            Full immutable log of every stock
-            movement and inventory adjustment.
+            Stock movements and inventory adjustments, with one entry per roll.
           </p>
         </div>
 
+        <div className="flex gap-2">
+        <button type="button" className="btn-secondary" onClick={refresh} disabled={loading}>
+          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+          {loading ? 'Refreshing…' : 'Refresh'}
+        </button>
         <button
           className="btn-secondary"
+          disabled={loading || Boolean(loadError) || filtered.length === 0}
           onClick={handleExport}
         >
           <Download size={15} />
 
           Export CSV
         </button>
+        </div>
       </div>
+
+      {loadError && <p role="alert" className="text-sm text-red-600">{loadError} Displayed data may be incomplete. Try Refresh.</p>}
 
       {/* FILTERS */}
 
@@ -552,7 +483,7 @@ export default function Ledger() {
         <SearchInput
           value={query}
           onChange={setQuery}
-          placeholder="Search transaction, roll, SKU, party…"
+          placeholder="Search transaction, roll, SKU, product, party…"
           className="max-w-sm"
         />
 
@@ -577,9 +508,35 @@ export default function Ledger() {
           )}
         </select>
 
+        <label className="text-xs text-ink-700/60">
+          From
+          <input type="date" className="input mt-1" value={fromDate}
+            onChange={event => setFromDate(event.target.value)} />
+        </label>
+        <label className="text-xs text-ink-700/60">
+          To
+          <input type="date" className="input mt-1" value={toDate}
+            onChange={event => setToDate(event.target.value)} />
+        </label>
+        <button type="button" className="btn-ghost" onClick={() => {
+          setQuery(''); setTypeFilter('All'); setFromDate(''); setToDate('');
+        }}>Clear filters</button>
+
         <span className="text-xs text-ink-700/50 ml-auto">
           {filtered.length} entries
         </span>
+      </div>
+
+      {invalidRange && <p role="alert" className="text-sm text-red-600">From date cannot be after To date.</p>}
+
+      <div>
+        <p className="text-xs text-ink-700/60 mb-2">Totals for the filtered entries. Net movement includes adjustments; it is not the stock balance.</p>
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+          <StatCard label="Inward" value={metres(totals.inward)} tone="good" />
+          <StatCard label="Outward" value={metres(totals.outward)} tone="bad" />
+          <StatCard label="Returns" value={metres(totals.returned)} tone="loom" />
+          <StatCard label="Net movement" value={metres(totals.net)} />
+        </div>
       </div>
 
       {/* TABLE */}
@@ -590,6 +547,7 @@ export default function Ledger() {
           columns={columns}
           rows={filtered}
           rowKey="id"
+          emptyMessage={loading ? 'Loading ledger…' : 'No ledger entries match these filters.'}
         />
 
       </div>

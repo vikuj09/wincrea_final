@@ -16,6 +16,7 @@ async function getCustomers(req, res) {
                 email,
                 address,
                 gst_number,
+                contact, city, segment,
                 created_at,
                 updated_at
             FROM customers
@@ -53,7 +54,8 @@ async function createCustomer(req, res) {
             phone,
             email,
             address,
-            gstNumber
+            gstNumber,
+            contact, city, segment
         } = req.body;
 
         if (
@@ -77,16 +79,17 @@ async function createCustomer(req, res) {
                         phone,
                         email,
                         address,
-                        gst_number
+                        gst_number, contact, city, segment
                     )
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 `,
                 [
                     name.trim(),
                     phone || null,
                     email || null,
                     address || null,
-                    gstNumber || null
+                    gstNumber || null,
+                    contact || null, city || null, segment || null
                 ]
             );
 
@@ -130,7 +133,8 @@ async function updateCustomer(req, res) {
             phone,
             email,
             address,
-            gstNumber
+            gstNumber,
+            contact, city, segment
         } = req.body;
 
         if (
@@ -154,7 +158,7 @@ async function updateCustomer(req, res) {
                     phone = ?,
                     email = ?,
                     address = ?,
-                    gst_number = ?
+                    gst_number = ?, contact = ?, city = ?, segment = ?
                 WHERE id = ?
                 `,
                 [
@@ -163,6 +167,7 @@ async function updateCustomer(req, res) {
                     email || null,
                     address || null,
                     gstNumber || null,
+                    contact || null, city || null, segment || null,
                     id
                 ]
             );

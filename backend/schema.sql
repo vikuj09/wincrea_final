@@ -60,6 +60,9 @@ CREATE TABLE IF NOT EXISTS email_otps (
 CREATE TABLE IF NOT EXISTS customers (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     name        VARCHAR(200)    NOT NULL,
+    contact     VARCHAR(255) NULL,
+    city        VARCHAR(255) NULL,
+    segment     VARCHAR(255) NULL,
     phone       VARCHAR(30)     NULL,
     email       VARCHAR(255)    NULL,
     address     VARCHAR(500)    NULL,
@@ -89,7 +92,7 @@ CREATE TABLE IF NOT EXISTS products (
     id              INT AUTO_INCREMENT PRIMARY KEY,
     sku             VARCHAR(100)    NOT NULL UNIQUE,
     name            VARCHAR(200)    NOT NULL,
-    category        ENUM('ESSENTIAL','PREMIUM') NOT NULL,
+    category        ENUM('ESSENTIAL','PREMIUM','PEGASUS') NOT NULL,
     color           VARCHAR(100)    NULL,
     width_cm        DECIMAL(10,2)   NULL,
     rate_per_meter  DECIMAL(12,2)   NOT NULL DEFAULT 0,
@@ -111,6 +114,7 @@ CREATE TABLE IF NOT EXISTS rolls (
     batch               VARCHAR(100)    NULL,
     rack                VARCHAR(50)     NULL,
     bin                 VARCHAR(50)     NULL,
+    hold_reason         VARCHAR(255)    NULL,
     supplier_id         INT             NULL,
     inward_date         DATETIME        NULL,
     created_at          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -127,7 +131,7 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
     id              INT AUTO_INCREMENT PRIMARY KEY,
     po_number       VARCHAR(50)     NOT NULL UNIQUE,
     supplier_id     INT             NOT NULL,
-    status          ENUM('DRAFT','APPROVED','PARTIALLY_RECEIVED','RECEIVED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+    status          ENUM('DRAFT','APPROVED','ORDERED','PARTIALLY_RECEIVED','RECEIVED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
     expected_date   DATE            NULL,
     notes           VARCHAR(1000)   NULL,
     created_by      INT             NULL,
@@ -157,6 +161,9 @@ CREATE TABLE IF NOT EXISTS proforma_invoices (
     pi_number       VARCHAR(50)     NOT NULL UNIQUE,
     customer_id     INT             NOT NULL,
     status          ENUM('DRAFT','CONFIRMED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+    confirmed_at    TIMESTAMP       NULL,
+    confirmed_by    INT             NULL,
+    transaction_id  INT             NULL,
     invoice_date    DATE            NULL,
     remarks         VARCHAR(1000)   NULL,
     created_by      INT             NULL,
@@ -185,7 +192,7 @@ CREATE TABLE IF NOT EXISTS proforma_invoice_items (
 CREATE TABLE IF NOT EXISTS transactions (
     id                  INT AUTO_INCREMENT PRIMARY KEY,
     transaction_number  VARCHAR(50)     NOT NULL UNIQUE,
-    transaction_type    ENUM('INWARD','OUTWARD','RETURN') NOT NULL,
+    transaction_type    ENUM('INWARD','OUTWARD','RETURN','ADJUSTMENT') NOT NULL,
     customer_id         INT             NULL,
     supplier_id         INT             NULL,
     user_id             INT             NULL,
@@ -239,6 +246,21 @@ CREATE TABLE IF NOT EXISTS share_links (
     created_by      INT             NULL,
     created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_share_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS import_batches (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    file_name VARCHAR(255) NOT NULL,
+    import_type ENUM('PRODUCTS','INWARD','OPENING_STOCK') NOT NULL,
+    status ENUM('PENDING','PROCESSING','COMPLETED','FAILED') NOT NULL DEFAULT 'PENDING',
+    uploaded_by INT NOT NULL,
+    total_rows INT DEFAULT 0,
+    successful_rows INT DEFAULT 0,
+    failed_rows INT DEFAULT 0,
+    error_message TEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP NULL,
+    FOREIGN KEY (uploaded_by) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 SET FOREIGN_KEY_CHECKS = 1;

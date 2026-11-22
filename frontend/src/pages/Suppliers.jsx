@@ -1,3 +1,5 @@
+import { escapePrintData } from '../utils/escapePrintData';
+import { transactionItems } from '../utils/transactions';
 import React, {
   useMemo,
   useState,
@@ -168,6 +170,9 @@ function printPI(
   if (!pi) {
     return;
   }
+
+  pi = escapePrintData(pi);
+  customer = escapePrintData(customer);
 
   const items =
     Array.isArray(pi.items)
@@ -1505,6 +1510,7 @@ export default function Suppliers() {
     customers,
 
     proformaInvoices,
+    transactions,
 
     createProformaInvoice,
     confirmProformaInvoice,
@@ -1538,9 +1544,6 @@ export default function Suppliers() {
   const [ratesDirty, setRatesDirty] = useState(false);
   const [rateError, setRateError] = useState('');
   const [savingRates, setSavingRates] = useState(false);
-  const canEditRates = ['DRAFT', 'CONFIRMED'].includes(
-    String(viewPI?.status || '').toUpperCase()
-  );
   const viewSubtotal = (viewPI?.items || []).reduce(
     (sum, item) => sum + Number(item.quantity || 0) * Number(item.ratePerMeter || 0), 0
   );
@@ -1752,11 +1755,17 @@ export default function Suppliers() {
         purchaseRecommendations(
           products,
           rolls,
-          []
+          transactionItems(transactions).map(item => ({
+            type: item.transaction_type,
+            productId: item.product_id,
+            meters: Number(item.quantity || 0),
+            timestamp: item.created_at,
+          }))
         ),
       [
         products,
         rolls,
+        transactions,
       ]
     );
 
@@ -4567,7 +4576,7 @@ export default function Suppliers() {
                             </td>
 
                             <td className="table-cell">
-                              {canEditRates ? (
+                              {viewPI.status === 'DRAFT' ? (
                                 <input
                                   type="number"
                                   min="0"
@@ -4632,7 +4641,12 @@ export default function Suppliers() {
 
 
               {rateError && <p role="alert" className="text-sm text-red-600">{rateError}</p>}
-              {canEditRates && (
+              {viewPI.status === 'CONFIRMED' && (
+                <p className="text-sm text-ink-700/60">
+                  Rates are locked because this PI has been confirmed.
+                </p>
+              )}
+              {viewPI.status === 'DRAFT' && (
                 <div className="flex justify-end items-center gap-3">
                   {ratesDirty && <span className="text-sm text-ink-700/60">Unsaved rate changes</span>}
                   <button type="button" className="btn-primary" onClick={saveRates}

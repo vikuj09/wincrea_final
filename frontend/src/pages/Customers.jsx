@@ -1,3 +1,4 @@
+import { transactionItems } from '../utils/transactions';
 import React, {
   useMemo,
   useState,
@@ -35,7 +36,7 @@ export default function Customers() {
 
   const {
     customers,
-    ledger,
+    transactions,
     products,
     addCustomer,
     removeCustomer,
@@ -136,11 +137,18 @@ export default function Customers() {
 
   function historyFor(customerId) {
 
-    return ledger
+    return transactionItems(transactions).map(item => ({
+        id: `${item.id}-${item.item_id}`,
+        type: item.transaction_type,
+        refId: Number(item.customer_id),
+        productId: item.product_id,
+        meters: Number(item.quantity || 0),
+        timestamp: item.created_at,
+      }))
       .filter(
         (l) =>
           l.type === 'OUTWARD' &&
-          l.refId === customerId
+          l.refId === Number(customerId)
       )
       .sort(
         (a, b) =>

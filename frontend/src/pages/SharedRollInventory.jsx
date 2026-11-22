@@ -33,6 +33,7 @@ export default function SharedRollInventory() {
   ] = useState('');
 
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [skuQuery, setSkuQuery] = useState('');
 
   const categories = useMemo(() => CATEGORIES.map((name) => {
     const categoryRolls = rolls.filter(
@@ -50,6 +51,17 @@ export default function SharedRollInventory() {
   }), [rolls]);
 
   const selected = categories.find((category) => category.name === selectedCategory);
+  const filteredRolls = useMemo(() => {
+    const query = skuQuery.trim().toLowerCase();
+    return (selected?.rolls || []).filter(
+      (roll) => !query || String(roll.sku || '').toLowerCase().includes(query)
+    );
+  }, [selected, skuQuery]);
+
+  const filteredMeters = filteredRolls.reduce((total, roll) => {
+    const remaining = Number(roll.remaining_length || 0);
+    return total + (Number.isFinite(remaining) ? remaining : 0);
+  }, 0);
 
   useEffect(() => {
 
@@ -205,7 +217,10 @@ export default function SharedRollInventory() {
               key={category.name}
               type="button"
               aria-pressed={selectedCategory === category.name}
-              onClick={() => setSelectedCategory(category.name)}
+              onClick={() => {
+                setSelectedCategory(category.name);
+                setSkuQuery('');
+              }}
               className={`card p-5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-loom-600 ${
                 selectedCategory === category.name
                   ? 'ring-2 ring-loom-600 bg-loom-50'
@@ -236,6 +251,34 @@ export default function SharedRollInventory() {
               {' · '}
               Total remaining metres: {selected.meters.toLocaleString('en-IN', { maximumFractionDigits: 2 })} m
             </p>
+          </div>
+
+          <div className="px-4 py-3 border-b border-ink-900/10">
+            <label htmlFor="shared-roll-sku" className="block text-sm font-medium mb-2">
+              Search by SKU
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                id="shared-roll-sku"
+                type="search"
+                className="input w-full sm:max-w-sm"
+                placeholder="Enter all or part of a SKU…"
+                value={skuQuery}
+                onChange={(event) => setSkuQuery(event.target.value)}
+              />
+              {skuQuery && (
+                <button type="button" className="btn-ghost" onClick={() => setSkuQuery('')}>
+                  Clear
+                </button>
+              )}
+            </div>
+            {skuQuery.trim() && (
+              <p className="text-sm text-ink-700/60 mt-2" role="status">
+                Matching rolls: {filteredRolls.length.toLocaleString('en-IN')}
+                {' · '}
+                {filteredMeters.toLocaleString('en-IN', { maximumFractionDigits: 2 })} m remaining
+              </p>
+            )}
           </div>
 
           <div className="overflow-x-auto">
@@ -284,15 +327,17 @@ export default function SharedRollInventory() {
 
               <tbody>
 
-                {selected.rolls.length === 0 && (
+                {filteredRolls.length === 0 && (
                   <tr>
                     <td colSpan={8} className="px-4 py-10 text-center text-ink-700/55">
-                      No rolls in {selected.name} yet.
+                      {skuQuery.trim()
+                        ? `No rolls match SKU “${skuQuery.trim()}” in ${selected.name}.`
+                        : `No rolls in ${selected.name} yet.`}
                     </td>
                   </tr>
                 )}
 
-                {selected.rolls.map(
+                {filteredRolls.map(
                   (roll) => (
 
                     <tr

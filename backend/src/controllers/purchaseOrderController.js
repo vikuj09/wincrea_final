@@ -1,3 +1,4 @@
+const { temporaryNumber, finalizeNumber } = require('../utils/documentNumbers');
 const pool = require('../config/db');
 
 
@@ -331,10 +332,9 @@ async function getPurchaseOrderById(req, res) {
 
 async function createPurchaseOrder(req, res) {
 
-  const connection =
-    await pool.getConnection();
-
+  let connection;
   try {
+    connection = await pool.getConnection();
 
     const {
       supplierId,
@@ -342,7 +342,7 @@ async function createPurchaseOrder(req, res) {
       notes,
       createdBy,
       items,
-    } = req.body;
+    } = { ...req.body, userId: req.user.userId, createdBy: req.user.userId };
 
 
     // ----------------------------------------------------------
@@ -404,7 +404,7 @@ async function createPurchaseOrder(req, res) {
       suppliers.length === 0
     ) {
 
-      await connection.rollback();
+      if (connection) await connection.rollback();
 
       return res.status(404).json({
 
@@ -431,7 +431,7 @@ async function createPurchaseOrder(req, res) {
         item.quantityMeters === null
       ) {
 
-        await connection.rollback();
+        if (connection) await connection.rollback();
 
         return res.status(400).json({
 
@@ -455,7 +455,7 @@ async function createPurchaseOrder(req, res) {
         quantity <= 0
       ) {
 
-        await connection.rollback();
+        if (connection) await connection.rollback();
 
         return res.status(400).json({
 
@@ -485,7 +485,7 @@ async function createPurchaseOrder(req, res) {
         products.length === 0
       ) {
 
-        await connection.rollback();
+        if (connection) await connection.rollback();
 
         return res.status(404).json({
 
@@ -503,51 +503,7 @@ async function createPurchaseOrder(req, res) {
     // Generate PO number
     // ----------------------------------------------------------
 
-    const [lastPO] =
-      await connection.query(
-        `
-        SELECT po_number
-        FROM purchase_orders
-        ORDER BY id DESC
-        LIMIT 1
-        `
-      );
-
-
-    let nextNumber = 1;
-
-
-    if (
-      lastPO.length > 0
-    ) {
-
-      const match =
-        String(
-          lastPO[0].po_number
-        ).match(
-          /(\d+)$/
-        );
-
-
-      if (match) {
-
-        nextNumber =
-          Number(
-            match[1]
-          ) + 1;
-      }
-    }
-
-
-    const poNumber =
-      `PO-${String(
-        nextNumber
-      ).padStart(5, '0')}`;
-
-
-    // ----------------------------------------------------------
-    // Create PO
-    // ----------------------------------------------------------
+    let poNumber = temporaryNumber('PO');
 
     const [poResult] =
       await connection.query(
@@ -583,6 +539,7 @@ async function createPurchaseOrder(req, res) {
 
     const purchaseOrderId =
       poResult.insertId;
+    poNumber = await finalizeNumber(connection, 'purchaseOrder', purchaseOrderId, 'PO');
 
 
     // ----------------------------------------------------------
@@ -675,7 +632,7 @@ async function createPurchaseOrder(req, res) {
 
   } catch (error) {
 
-    await connection.rollback();
+    if (connection) await connection.rollback();
 
     console.error(
       'Create purchase order error:',
@@ -696,7 +653,7 @@ async function createPurchaseOrder(req, res) {
 
   } finally {
 
-    connection.release();
+    if (connection) connection.release();
   }
 }
 
@@ -822,11 +779,9 @@ async function receivePurchaseOrder(
   res
 ) {
 
-  const connection =
-    await pool.getConnection();
-
-
+  let connection;
   try {
+    connection = await pool.getConnection();
 
     const { id } =
       req.params;
@@ -835,7 +790,7 @@ async function receivePurchaseOrder(
       userId = 1,
       items,
       notes,
-    } = req.body;
+    } = { ...req.body, userId: req.user.userId, createdBy: req.user.userId };
 
 
     // ----------------------------------------------------------
@@ -881,7 +836,7 @@ async function receivePurchaseOrder(
       orders.length === 0
     ) {
 
-      await connection.rollback();
+      if (connection) await connection.rollback();
 
       return res.status(404).json({
 
@@ -907,7 +862,7 @@ async function receivePurchaseOrder(
       'CANCELLED'
     ) {
 
-      await connection.rollback();
+      if (connection) await connection.rollback();
 
       return res.status(400).json({
 
@@ -925,7 +880,7 @@ async function receivePurchaseOrder(
       'RECEIVED'
     ) {
 
-      await connection.rollback();
+      if (connection) await connection.rollback();
 
       return res.status(400).json({
 
@@ -982,7 +937,7 @@ async function receivePurchaseOrder(
         poItems.length === 0
       ) {
 
-        await connection.rollback();
+        if (connection) await connection.rollback();
 
         return res.status(404).json({
 
@@ -1010,7 +965,7 @@ async function receivePurchaseOrder(
         receivedItem.rolls.length === 0
       ) {
 
-        await connection.rollback();
+        if (connection) await connection.rollback();
 
         return res.status(400).json({
 
@@ -1054,7 +1009,7 @@ async function receivePurchaseOrder(
         receivingMeters <= 0
       ) {
 
-        await connection.rollback();
+        if (connection) await connection.rollback();
 
         return res.status(400).json({
 
@@ -1072,7 +1027,7 @@ async function receivePurchaseOrder(
         remainingPOQuantity
       ) {
 
-        await connection.rollback();
+        if (connection) await connection.rollback();
 
         return res.status(400).json({
 
@@ -1107,7 +1062,7 @@ async function receivePurchaseOrder(
           length <= 0
         ) {
 
-          await connection.rollback();
+          if (connection) await connection.rollback();
 
           return res.status(400).json({
 
@@ -1236,52 +1191,7 @@ async function receivePurchaseOrder(
     // Create INWARD transaction
     // ----------------------------------------------------------
 
-    const [
-      lastTransactions
-    ] =
-      await connection.query(
-        `
-        SELECT transaction_number
-        FROM transactions
-        WHERE transaction_type = 'INWARD'
-        ORDER BY id DESC
-        LIMIT 1
-        `
-      );
-
-
-    let nextTransactionNumber =
-      1;
-
-
-    if (
-      lastTransactions.length > 0
-    ) {
-
-      const match =
-        String(
-          lastTransactions[0]
-            .transaction_number
-        ).match(
-          /(\d+)$/
-        );
-
-
-      if (match) {
-
-        nextTransactionNumber =
-          Number(
-            match[1]
-          ) + 1;
-      }
-    }
-
-
-    const transactionNumber =
-      `IN-${String(
-        nextTransactionNumber
-      ).padStart(5, '0')}`;
-
+    let transactionNumber = temporaryNumber('IN');
 
     const [transactionResult] =
       await connection.query(
@@ -1318,6 +1228,7 @@ async function receivePurchaseOrder(
 
     const transactionId =
       transactionResult.insertId;
+    transactionNumber = await finalizeNumber(connection, 'transaction', transactionId, 'IN');
 
 
     // ----------------------------------------------------------
@@ -1494,7 +1405,7 @@ async function receivePurchaseOrder(
 
   } catch (error) {
 
-    await connection.rollback();
+    if (connection) await connection.rollback();
 
     console.error(
       'Receive purchase order error:',
@@ -1515,7 +1426,7 @@ async function receivePurchaseOrder(
 
   } finally {
 
-    connection.release();
+    if (connection) connection.release();
   }
 }
 

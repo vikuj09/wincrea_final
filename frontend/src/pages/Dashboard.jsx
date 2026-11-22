@@ -150,6 +150,24 @@ export default function Dashboard() {
       );
   }, [transactions]);
 
+  const last30DaysOut = useMemo(() => {
+    const now = Date.now();
+    const cutoff = now - 30 * 24 * 60 * 60 * 1000;
+
+    return transactions.reduce((total, transaction) => {
+      const timestamp = new Date(transaction.created_at ?? transaction.createdAt).getTime();
+      if (
+        String(transaction.transaction_type || '').toUpperCase() !== 'OUTWARD' ||
+        !Number.isFinite(timestamp) || timestamp < cutoff || timestamp > now
+      ) return total;
+
+      return {
+        meters: total.meters + Number(transaction.total_quantity || 0),
+        rolls: total.rolls + Number(transaction.total_rolls ?? transaction.items?.length ?? 0),
+      };
+    }, { meters: 0, rolls: 0 });
+  }, [transactions]);
+
   // ============================================================
   // REORDER ALERTS
   // ============================================================
@@ -212,7 +230,7 @@ export default function Dashboard() {
         .reduce(
           (total, t) =>
             total +
-            Number(t.quantity || 0),
+            Number(t.total_quantity || 0),
           0
         );
 
@@ -228,7 +246,7 @@ export default function Dashboard() {
         .reduce(
           (total, t) =>
             total +
-            Number(t.quantity || 0),
+            Number(t.total_quantity || 0),
           0
         );
 
@@ -366,7 +384,7 @@ export default function Dashboard() {
           STAT CARDS
       ====================================================== */}
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
 
         <StatCard
           label="Rolls on hand"
@@ -407,6 +425,14 @@ export default function Dashboard() {
           value={todayOut.rolls.toLocaleString('en-IN')}
           icon={ArrowUpFromLine}
           tone="warn"
+        />
+
+        <StatCard
+          label="Outward · last 30 days"
+          value={`${last30DaysOut.meters.toLocaleString('en-IN', { maximumFractionDigits: 2 })} m`}
+          sub={`${last30DaysOut.rolls.toLocaleString('en-IN')} rolls dispatched`}
+          icon={ArrowUpFromLine}
+          tone="loom"
         />
 
       </div>

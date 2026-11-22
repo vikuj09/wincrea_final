@@ -3,9 +3,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const pool = require('../config/db');
 
-const JWT_SECRET =
-  process.env.JWT_SECRET ||
-  'window-creators-secret-change-this';
+const { JWT_SECRET } = require('../config/auth');
 
 // ============================================================
 // EMAIL — RESEND
@@ -15,7 +13,7 @@ const RESEND_API_URL = 'https://api.resend.com/emails';
 
 async function sendEmail({ to, subject, html }) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM;
+  const from = process.env.RESEND_FROM || process.env.RESEND_FROM_EMAIL;
 
   if (!apiKey || !from) {
     throw new Error(

@@ -71,8 +71,7 @@ export default function Returns() {
       () =>
         rolls.filter(
           (r) =>
-            r.status === 'Dispatched' ||
-            r.status === 'EMPTY'
+            Number(r.returnableQuantity) > 0
         ),
       [rolls]
     );
@@ -86,37 +85,7 @@ export default function Returns() {
 
     setReturningRoll(roll);
 
-    const original =
-      Number(
-        roll.length ??
-        roll.originalLength ??
-        roll.original_length ??
-        0
-      );
-
-    const remaining =
-      Number(
-        roll.remainingLength ??
-        roll.remaining_length ??
-        0
-      );
-
-    /*
-      Amount already dispatched.
-
-      Example:
-
-      Original = 42
-      Remaining = 0
-
-      Returnable = 42
-    */
-
-    const returnable =
-      Math.max(
-        0,
-        original - remaining
-      );
+    const returnable = Number(roll.returnableQuantity || 0);
 
     setQuantity(
       returnable > 0
@@ -178,27 +147,7 @@ export default function Returns() {
     }
 
 
-    const original =
-      Number(
-        returningRoll.length ??
-        returningRoll.originalLength ??
-        returningRoll.original_length ??
-        0
-      );
-
-    const remaining =
-      Number(
-        returningRoll.remainingLength ??
-        returningRoll.remaining_length ??
-        0
-      );
-
-    const maximumReturn =
-      Math.max(
-        0,
-        original - remaining
-      );
-
+    const maximumReturn = Number(returningRoll.returnableQuantity || 0);
 
     if (
       returnQuantity >
@@ -223,7 +172,7 @@ export default function Returns() {
       const result =
         await returnRoll({
 
-          userId: 1,
+
 
           rollId:
             returningRoll.id,
@@ -322,8 +271,8 @@ export default function Returns() {
 
         const length =
           Number(
-            r.length ??
             r.originalLength ??
+            r.length ??
             r.original_length ??
             0
           );
@@ -554,6 +503,7 @@ export default function Returns() {
               <input
                 className="input"
                 type="number"
+                max={returningRoll.returnableQuantity}
                 min="0.01"
                 step="0.01"
                 value={quantity}
@@ -568,22 +518,7 @@ export default function Returns() {
 
                 Maximum return:{' '}
 
-                {Math.max(
-                  0,
-
-                  Number(
-                    returningRoll.length ??
-                    returningRoll.originalLength ??
-                    returningRoll.original_length ??
-                    0
-                  ) -
-
-                  Number(
-                    returningRoll.remainingLength ??
-                    returningRoll.remaining_length ??
-                    0
-                  )
-                )}
+                {Number(returningRoll.returnableQuantity || 0)}
 
                 {' '}m
 

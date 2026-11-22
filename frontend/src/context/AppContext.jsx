@@ -1,3 +1,4 @@
+import { apiFetch as fetch } from '../api/apiFetch';
 import React, {
   createContext,
   useContext,
@@ -357,6 +358,8 @@ export function AppProvider({ children }) {
                     r.dispatched_at ||
                     null,
 
+                  returnableQuantity: Number(r.returnable_quantity || 0),
+
                   holdReason:
                     r.hold_reason ||
                     null,
@@ -448,6 +451,9 @@ export function AppProvider({ children }) {
                   id:
                     c.id,
 
+                  contact: c.contact || '',
+                  city: c.city || '',
+                  segment: c.segment || '',
                   name:
                     c.name || '',
 
@@ -1090,6 +1096,15 @@ export function AppProvider({ children }) {
           AUTH_TOKEN_KEY
         );
 
+        setProducts([]);
+        setRolls([]);
+        setSuppliers([]);
+        setCustomers([]);
+        setTransactions([]);
+        setPurchaseOrders([]);
+        setAdjustments([]);
+        setUsers([]);
+        setProformaInvoices([]);
         setAuthToken(
           null
         );
@@ -1117,6 +1132,8 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
 
+    if (!isAuthenticated) return;
+
     async function loadInitialData() {
 
       try {
@@ -1137,7 +1154,7 @@ export function AppProvider({ children }) {
 
           loadAdjustments(),
 
-          loadUsers(),
+          ...(currentUser?.role === 'ADMIN' ? [loadUsers()] : []),
 
           loadProformaInvoices(),
 
@@ -1155,6 +1172,9 @@ export function AppProvider({ children }) {
     loadInitialData();
 
   }, [
+    isAuthenticated,
+    currentUser?.id,
+    currentUser?.role,
     loadProducts,
     loadRolls,
     loadSuppliers,
@@ -1235,6 +1255,15 @@ export function AppProvider({ children }) {
           AUTH_TOKEN_KEY
         );
 
+        setProducts([]);
+        setRolls([]);
+        setSuppliers([]);
+        setCustomers([]);
+        setTransactions([]);
+        setPurchaseOrders([]);
+        setAdjustments([]);
+        setUsers([]);
+        setProformaInvoices([]);
         setAuthToken(
           null
         );
@@ -2612,21 +2641,27 @@ export function AppProvider({ children }) {
 
 
   // ==========================================================
-  // CLEAR LOCAL DATA
+  // CLEAR INVENTORY DATA (preserve account and contact master records)
   // ==========================================================
 
-  const clearAll =
-    useCallback(
-      () => {
+  const clearAll = useCallback(async (confirmation) => {
+    const response = await fetch(`${API_BASE}/admin/clear-data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmation }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Failed to clear data.');
 
-        setLedger(
-          []
-        );
-      },
-      [
-        setLedger,
-      ]
-    );
+    setProducts([]);
+    setRolls([]);
+    setTransactions([]);
+    setPurchaseOrders([]);
+    setAdjustments([]);
+    setProformaInvoices([]);
+    setLedger([]);
+    return data;
+  }, [setLedger]);
 
 
   // ==========================================================

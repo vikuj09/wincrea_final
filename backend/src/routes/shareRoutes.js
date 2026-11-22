@@ -1,6 +1,7 @@
 const express = require('express');
 
 const router = express.Router();
+const { authenticateToken } = require('../middleware/authMiddleware');
 
 const {
     createShareLink,
@@ -17,18 +18,21 @@ const {
 // Create a share link
 router.post(
     '/',
+    authenticateToken,
     createShareLink
 );
 
 // Get links created by the logged-in user
 router.get(
     '/mine',
+    authenticateToken,
     getMyShareLinks
 );
 
 // Disable an existing share link
 router.delete(
     '/:id',
+    authenticateToken,
     disableShareLink
 );
 

@@ -85,20 +85,26 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+const { authenticateToken } = require('./middleware/authMiddleware');
+const { requireAdmin } = require('./middleware/adminMiddleware');
+
+const { clearInventoryData } = require('./controllers/dataController');
+app.post('/api/admin/clear-data', authenticateToken, requireAdmin, clearInventoryData);
+
 // API endpoints
 app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/customers', customerRoutes);
-app.use('/api/suppliers', supplierRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/rolls', rollRoutes);
-app.use('/api/inward', inwardRoutes);
-app.use('/api/outward', outwardRoutes);
-app.use('/api/return', returnRoutes);
-app.use('/api/adjustments', adjustmentRoutes);
-app.use('/api/transactions', transactionRoutes);
-app.use('/api/purchase-orders', purchaseOrderRoutes);
-app.use('/api/proforma-invoices', proformaInvoiceRoutes);
+app.use('/api/users', authenticateToken, requireAdmin, userRoutes);
+app.use('/api/customers', authenticateToken, customerRoutes);
+app.use('/api/suppliers', authenticateToken, supplierRoutes);
+app.use('/api/products', authenticateToken, productRoutes);
+app.use('/api/rolls', authenticateToken, rollRoutes);
+app.use('/api/inward', authenticateToken, inwardRoutes);
+app.use('/api/outward', authenticateToken, outwardRoutes);
+app.use('/api/return', authenticateToken, returnRoutes);
+app.use('/api/adjustments', authenticateToken, adjustmentRoutes);
+app.use('/api/transactions', authenticateToken, transactionRoutes);
+app.use('/api/purchase-orders', authenticateToken, purchaseOrderRoutes);
+app.use('/api/proforma-invoices', authenticateToken, proformaInvoiceRoutes);
 app.use('/api/share', shareRoutes);
 
 // ============================================================
@@ -139,6 +145,10 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5055;
 
-app.listen(PORT, () => {
-    console.log(`WINCREA API running on port ${PORT}`);
-});
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`WINCREA API running on port ${PORT}`);
+    });
+}
+
+module.exports = app;

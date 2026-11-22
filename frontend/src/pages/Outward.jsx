@@ -68,6 +68,15 @@ export default function Outward() {
 
   const [productId, setProductId] = useState('All');
   const [query, setQuery] = useState('');
+  const [minMeters, setMinMeters] = useState('');
+  const [maxMeters, setMaxMeters] = useState('');
+  const meterFilterError =
+    (minMeters !== '' && (!Number.isFinite(Number(minMeters)) || Number(minMeters) < 0)) ||
+    (maxMeters !== '' && (!Number.isFinite(Number(maxMeters)) || Number(maxMeters) < 0))
+      ? 'Enter valid, non-negative metre values.'
+      : minMeters !== '' && maxMeters !== '' && Number(minMeters) > Number(maxMeters)
+        ? 'Minimum metres cannot exceed maximum metres.'
+        : '';
   const [selected, setSelected] = useState([]);
   const [customerId, setCustomerId] = useState('');
   const [note, setNote] = useState('');
@@ -107,6 +116,7 @@ export default function Outward() {
 
   const availableRolls = useMemo(() => {
     const term = query.trim().toLowerCase();
+    if (meterFilterError) return [];
 
     return rolls.filter((roll) => {
       if (
@@ -120,7 +130,9 @@ export default function Outward() {
         roll.remainingLength ?? roll.length ?? 0
       );
 
-      if (remaining <= 0) return false;
+      if (!Number.isFinite(remaining) || remaining <= 0) return false;
+      if (minMeters !== '' && remaining < Number(minMeters)) return false;
+      if (maxMeters !== '' && remaining > Number(maxMeters)) return false;
 
       // Product filter
       if (
@@ -167,7 +179,7 @@ export default function Outward() {
         category.includes(term)
       );
     });
-  }, [rolls, productId, query, productMap]);
+  }, [rolls, productId, query, productMap, minMeters, maxMeters, meterFilterError]);
 
   // ------------------------------------------------------------
   // SELECTED ROLLS
@@ -445,6 +457,55 @@ export default function Outward() {
             </button>
 
           </div>
+
+          <fieldset className="rounded-xl border border-ink-900/10 p-3">
+            <legend className="px-1 text-sm font-medium">Filter by remaining metres</legend>
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label htmlFor="outward-min-metres" className="label">Minimum (m)</label>
+                <input
+                  id="outward-min-metres"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="input w-36"
+                  placeholder="No minimum"
+                  value={minMeters}
+                  onChange={(event) => setMinMeters(event.target.value)}
+                  aria-invalid={Boolean(meterFilterError)}
+                  aria-describedby={meterFilterError ? 'outward-metre-error' : undefined}
+                />
+              </div>
+              <div>
+                <label htmlFor="outward-max-metres" className="label">Maximum (m)</label>
+                <input
+                  id="outward-max-metres"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="input w-36"
+                  placeholder="No maximum"
+                  value={maxMeters}
+                  onChange={(event) => setMaxMeters(event.target.value)}
+                  aria-invalid={Boolean(meterFilterError)}
+                  aria-describedby={meterFilterError ? 'outward-metre-error' : undefined}
+                />
+              </div>
+              {(minMeters !== '' || maxMeters !== '') && (
+                <button type="button" className="btn-ghost" onClick={() => {
+                  setMinMeters('');
+                  setMaxMeters('');
+                }}>
+                  Clear metre filter
+                </button>
+              )}
+            </div>
+            {meterFilterError && (
+              <p id="outward-metre-error" role="alert" className="text-xs text-red-600 mt-2">
+                {meterFilterError}
+              </p>
+            )}
+          </fieldset>
 
           {/* ROLL LIST */}
 

@@ -1,15 +1,16 @@
+const { temporaryNumber, finalizeNumber } = require('../utils/documentNumbers');
 const pool = require('../config/db');
 
 async function returnRoll(req, res) {
-  const connection = await pool.getConnection();
-
+  let connection;
   try {
+    connection = await pool.getConnection();
     const {
       userId,
       rollId,
       quantity,
       notes,
-    } = req.body;
+    } = { ...req.body, userId: req.user.userId, createdBy: req.user.userId };
 
     // ==========================================================
     // VALIDATION
@@ -59,7 +60,7 @@ async function returnRoll(req, res) {
     );
 
     if (rolls.length === 0) {
-      await connection.rollback();
+      if (connection) await connection.rollback();
 
       return res.status(404).json({
         success: false,
@@ -84,7 +85,8 @@ async function returnRoll(req, res) {
         `
         SELECT
           t.id,
-          t.customer_id
+          t.customer_id,
+          ti.quantity
         FROM transactions t
         INNER JOIN transaction_items ti
           ON ti.transaction_id = t.id
@@ -100,7 +102,7 @@ async function returnRoll(req, res) {
     if (
       outwardTransactions.length === 0
     ) {
-      await connection.rollback();
+      if (connection) await connection.rollback();
 
       return res.status(400).json({
         success: false,
@@ -113,7 +115,7 @@ async function returnRoll(req, res) {
       outwardTransactions[0].customer_id;
 
     if (!customerId) {
-      await connection.rollback();
+      if (connection) await connection.rollback();
 
       return res.status(400).json({
         success: false,
@@ -126,14 +128,23 @@ async function returnRoll(req, res) {
     // VALIDATE RETURN QUANTITY
     // ==========================================================
 
-    const maximumReturn =
-      originalLength - currentRemaining;
+    const outward = outwardTransactions[0];
+    const [returns] = await connection.query(`
+      SELECT COALESCE(SUM(ti.quantity), 0) AS returned_quantity
+      FROM transaction_items ti
+      JOIN transactions t ON t.id = ti.transaction_id
+      WHERE ti.roll_id = ? AND t.transaction_type = 'RETURN' AND t.id > ?
+    `, [roll.id, outward.id]);
+    const maximumReturn = Math.max(0, Math.min(
+      Number(outward.quantity) - Number(returns[0].returned_quantity),
+      originalLength - currentRemaining
+    ));
 
     if (
       returnQuantity >
       maximumReturn
     ) {
-      await connection.rollback();
+      if (connection) await connection.rollback();
 
       return res.status(400).json({
         success: false,
@@ -180,38 +191,7 @@ async function returnRoll(req, res) {
     // CREATE TRANSACTION NUMBER
     // ==========================================================
 
-    const [lastTransactions] =
-      await connection.query(
-        `
-        SELECT transaction_number
-        FROM transactions
-        WHERE transaction_type = 'RETURN'
-        ORDER BY id DESC
-        LIMIT 1
-        `
-      );
-
-    let nextNumber = 1;
-
-    if (lastTransactions.length > 0) {
-      const match =
-        String(
-          lastTransactions[0]
-            .transaction_number
-        ).match(/(\d+)$/);
-
-      if (match) {
-        nextNumber =
-          Number(match[1]) + 1;
-      }
-    }
-
-    const transactionNumber =
-      `RET-${String(nextNumber).padStart(5, '0')}`;
-
-    // ==========================================================
-    // CREATE RETURN TRANSACTION
-    // ==========================================================
+    let transactionNumber = temporaryNumber('RET');
 
     const [transactionResult] =
       await connection.query(
@@ -238,6 +218,7 @@ async function returnRoll(req, res) {
 
     const transactionId =
       transactionResult.insertId;
+    transactionNumber = await finalizeNumber(connection, 'transaction', transactionId, 'RET');
 
     // ==========================================================
     // CREATE TRANSACTION ITEM
@@ -299,7 +280,7 @@ async function returnRoll(req, res) {
 
   } catch (error) {
 
-    await connection.rollback();
+    if (connection) await connection.rollback();
 
     console.error(
       'Return roll error:',
@@ -316,7 +297,7 @@ async function returnRoll(req, res) {
 
   } finally {
 
-    connection.release();
+    if (connection) connection.release();
 
   }
 }

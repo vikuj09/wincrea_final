@@ -1,3 +1,4 @@
+import { transactionItems } from '../utils/transactions';
 import React, { useMemo, useState } from 'react';
 
 import {
@@ -54,6 +55,7 @@ function getTransactionType(transaction) {
 function getTransactionMeters(transaction) {
   return (
     Number(
+      transaction.total_quantity ??
       transaction.quantity ??
       transaction.meters ??
       0
@@ -146,7 +148,7 @@ export default function Analytics() {
           Array.isArray(
             transactions
           )
-            ? transactions
+            ? transactionItems(transactions)
                 .map(
                   (transaction) => ({
 
@@ -161,9 +163,7 @@ export default function Analytics() {
                       ),
 
                     meters:
-                      getTransactionMeters(
-                        transaction
-                      ),
+                      Number(transaction.quantity || 0),
 
                     timestamp:
                       getTransactionDate(

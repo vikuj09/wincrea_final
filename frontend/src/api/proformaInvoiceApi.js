@@ -1,3 +1,4 @@
+import { apiFetch as fetch } from './apiFetch';
 const API_BASE =
   (import.meta.env.VITE_API_URL || '/api');
 

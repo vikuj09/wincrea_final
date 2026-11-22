@@ -1,3 +1,4 @@
+const { temporaryNumber, finalizeNumber } = require('../utils/documentNumbers');
 const pool = require('../config/db');
 
 
@@ -411,17 +412,16 @@ async function createProformaInvoice(
   req,
   res
 ) {
-  const connection =
-    await pool.getConnection();
-
+  let connection;
   try {
+    connection = await pool.getConnection();
     const {
       customerId,
       invoiceDate,
       remarks,
       createdBy,
       items,
-    } = req.body;
+    } = { ...req.body, userId: req.user.userId, createdBy: req.user.userId };
 
     // ----------------------------------------------------------
     // VALIDATION
@@ -768,7 +768,7 @@ async function createProformaInvoice(
         'DRAFT',
     });
   } catch (error) {
-    await connection.rollback();
+    if (connection) await connection.rollback();
 
     console.error(
       'Create proforma invoice error:',
@@ -782,7 +782,7 @@ async function createProformaInvoice(
         'Failed to create proforma invoice',
     });
   } finally {
-    connection.release();
+    if (connection) connection.release();
   }
 }
 
@@ -812,17 +812,16 @@ async function confirmProformaInvoice(
   req,
   res
 ) {
-  const connection =
-    await pool.getConnection();
-
+  let connection;
   try {
+    connection = await pool.getConnection();
     const { id } =
       req.params;
 
     const {
       userId,
       notes,
-    } = req.body;
+    } = { ...req.body, userId: req.user.userId, createdBy: req.user.userId };
 
     await connection.beginTransaction();
 
@@ -1071,50 +1070,7 @@ async function confirmProformaInvoice(
     // GENERATE TRANSACTION NUMBER
     // ----------------------------------------------------------
 
-    const [transactionRows] =
-      await connection.query(`
-        SELECT transaction_number
-        FROM transactions
-        WHERE transaction_type = 'OUTWARD'
-        ORDER BY id DESC
-        LIMIT 1
-      `);
-
-    let transactionNumber;
-
-    if (
-      transactionRows.length === 0
-    ) {
-      transactionNumber =
-        'OUT-00001';
-    } else {
-      const last =
-        String(
-          transactionRows[0]
-            .transaction_number || ''
-        );
-
-      const match =
-        last.match(
-          /OUT-(\d+)/
-        );
-
-      const next =
-        match
-          ? Number(
-              match[1]
-            ) + 1
-          : 1;
-
-      transactionNumber =
-        `OUT-${String(
-          next
-        ).padStart(5, '0')}`;
-    }
-
-    // ----------------------------------------------------------
-    // CREATE OUTWARD TRANSACTION
-    // ----------------------------------------------------------
+    let transactionNumber = temporaryNumber('OUT');
 
     const [transactionResult] =
       await connection.query(
@@ -1152,6 +1108,7 @@ async function confirmProformaInvoice(
 
     const transactionId =
       transactionResult.insertId;
+    transactionNumber = await finalizeNumber(connection, 'transaction', transactionId, 'OUT');
 
     // ----------------------------------------------------------
     // DEDUCT ALL ROLLS
@@ -1257,7 +1214,7 @@ async function confirmProformaInvoice(
       totalQuantity,
     });
   } catch (error) {
-    await connection.rollback();
+    if (connection) await connection.rollback();
 
     console.error(
       'Confirm proforma invoice error:',
@@ -1271,7 +1228,7 @@ async function confirmProformaInvoice(
         'Failed to confirm proforma invoice',
     });
   } finally {
-    connection.release();
+    if (connection) connection.release();
   }
 }
 
@@ -1287,10 +1244,9 @@ async function cancelProformaInvoice(
   req,
   res
 ) {
-  const connection =
-    await pool.getConnection();
-
+  let connection;
   try {
+    connection = await pool.getConnection();
     const { id } =
       req.params;
 
@@ -1357,7 +1313,7 @@ async function cancelProformaInvoice(
         'CANCELLED',
     });
   } catch (error) {
-    await connection.rollback();
+    if (connection) await connection.rollback();
 
     console.error(
       'Cancel proforma invoice error:',
@@ -1371,7 +1327,7 @@ async function cancelProformaInvoice(
         'Failed to cancel proforma invoice',
     });
   } finally {
-    connection.release();
+    if (connection) connection.release();
   }
 }
 
@@ -1406,15 +1362,15 @@ async function updateProformaInvoiceRates(req, res) {
     const [invoices] = await connection.query(
       'SELECT id, status FROM proforma_invoices WHERE id = ? FOR UPDATE', [id]
     );
-    if (!invoices.length || !['DRAFT', 'CONFIRMED'].includes(invoices[0].status)) {
-      await connection.rollback();
-      return res.status(invoices.length ? 409 : 404).json({ message: 'Rates can only be edited on draft or confirmed PIs.' });
+    if (!invoices.length || invoices[0].status !== 'DRAFT') {
+      if (connection) await connection.rollback();
+      return res.status(invoices.length ? 409 : 404).json({ message: 'Only existing draft PIs can have their rates edited.' });
     }
     const [rows] = await connection.query(
       'SELECT id FROM proforma_invoice_items WHERE proforma_invoice_id = ? FOR UPDATE', [id]
     );
     if (items.some(item => !rows.some(row => Number(row.id) === Number(item.id)))) {
-      await connection.rollback();
+      if (connection) await connection.rollback();
       return res.status(400).json({ message: 'An item does not belong to this PI.' });
     }
     for (const item of items) {
@@ -1427,11 +1383,11 @@ async function updateProformaInvoiceRates(req, res) {
     await connection.commit();
     return res.json({ success: true, message: 'PI rates saved.' });
   } catch (error) {
-    if (connection) await connection.rollback();
+    if (connection) if (connection) await connection.rollback();
     console.error('Update PI rates error:', error);
     return res.status(500).json({ message: 'Failed to save PI rates.' });
   } finally {
-    if (connection) connection.release();
+    if (connection) if (connection) connection.release();
   }
 }
 

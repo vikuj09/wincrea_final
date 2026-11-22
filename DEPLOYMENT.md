@@ -1,102 +1,71 @@
 # Deploying Wincrea Loom
 
-Frontend → Vercel · Backend → Render · Database → Aiven (MySQL)
+The frontend runs on Vercel, the API on Render, and MySQL on Aiven.
 
-## What was fixed to make this deployable
+## Before deploying these fixes
 
-The uploaded project was missing several files needed to run it anywhere
-(including locally). These have been reconstructed by reading the actual
-code:
+1. Back up the database using your existing Aiven workflow.
+2. Existing databases need `backend/migrations/001_customer_details.sql` applied once.
+   It adds `customers.contact`, `customers.city`, and `customers.segment`; it does not
+   rewrite existing customer data. Check those columns first if the migration may
+   already have been applied. Do not run the entire schema against production.
+3. Deploy the frontend and backend together: private API routes now require a
+   valid login token. The updated frontend sends it on JSON and Excel upload requests.
+4. Confirm the existing `JWT_SECRET` is configured. Keep its current value to avoid
+   unnecessarily invalidating sessions. The API no longer accepts a public fallback secret.
 
-- `backend/package.json` and `backend/src/server.js` — didn't exist at all.
-- `backend/schema.sql` — no database schema was included anywhere in the
-  project; this was rebuilt by reading every SQL query in the 14 backend
-  controllers. **Review it before trusting it in production.**
-- `frontend/package.json` and `frontend/postcss.config.js` — didn't exist.
-- 17 hardcoded `http://localhost:5055/api` URLs across 12 frontend files —
-  replaced with `import.meta.env.VITE_API_URL`, falling back to localhost
-  for local dev.
-- `backend/src/config/db.js` — added SSL support, since Aiven requires TLS.
-- Added `.gitignore` entries, `.env.example` files, `render.yaml`, and
-  `vercel.json` (needed so client-side routes don't 404 on refresh).
-- The `.git` folder in the upload was corrupted (no `refs`), so it's been
-  removed — you'll `git init` fresh below.
-- **Security note:** the uploaded `backend/.env` contained a real JWT
-  secret and a live Gmail app password. That file was deleted from this
-  copy. **Rotate the Gmail app password and generate a new JWT secret**
-  before going live, since they were exposed in your upload.
+The migration is a prepared file; creating this file does not apply it to Aiven.
 
----
+## Database configuration
 
-## 1. Push to GitHub
+Copy `backend/.env.example` to `backend/.env` for local development and fill in your
+existing Aiven values. Keep credentials and certificates out of Git.
 
-Both Vercel and Render deploy from a git repo.
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`: existing Aiven connection.
+- `DB_SSL_CA`: inline Aiven CA certificate; literal `\n` sequences are accepted.
+- Alternatively, `DB_SSL_CA_FILE`: path to the downloaded CA file. If that path is
+  unavailable locally, the API checks `backend/src/config/ca.pem`.
+- Certificate verification remains enabled. A missing certificate produces an
+  explicit configuration error. `DB_SSL=false` is only for an intentional non-TLS
+  local database, not Aiven.
 
-```bash
-cd wincrea
-git init
-git add .
-git commit -m "Initial deployable version"
-git branch -M main
-git remote add origin https://github.com/<you>/wincrea.git
-git push -u origin main
-```
+For a new empty database, use `backend/schema.sql`. It includes the PI confirmation
+fields, PEGASUS category, ORDERED purchase status, roll metadata, and import batches.
+The existing Aiven database already contained those features; only the new customer
+fields need the migration above.
 
-## 2. Database — Aiven (MySQL)
+## Render backend
 
-1. Create a MySQL service in Aiven.
-2. From the service **Overview** page, note the host, port, user
-   (`avnadmin`), and password, and download the `ca.pem` certificate.
-3. Load the schema:
-   ```bash
-   mysql --host=<host> --port=<port> --user=avnadmin -p \
-       --ssl-ca=ca.pem defaultdb < backend/schema.sql
-   ```
-4. (Optional) Uncomment and edit the seed `INSERT` at the bottom of
-   `schema.sql` to create your first admin login, or register through the
-   app and manually set that user's `approval_status`/`role` in the DB.
+Root directory: `backend`. Build: `npm ci`. Start: `npm start`.
 
-## 3. Backend — Render
+Configure the DB variables above plus:
 
-1. New **Web Service** → connect your repo → set **root directory** to
-   `backend`.
-2. Build command: `npm install`  ·  Start command: `npm start`.
-3. Add environment variables (see `backend/.env.example`):
-   - `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_PORT` (from Aiven)
-   - `DB_SSL=true`, and ideally `DB_SSL_CA` = full contents of `ca.pem`
-     (replace real newlines with `\n` if pasting into a single-line field)
-   - `JWT_SECRET` = a new random value (`openssl rand -hex 32`)
-   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`,
-     `MAIL_FROM` (your **rotated** Gmail app password)
-   - `FRONTEND_URL` = your Vercel URL (add after step 4; comma-separate if
-     you have more than one, e.g. preview + production)
-4. Deploy. Confirm it's up: `https://<your-service>.onrender.com/api/health`
-   should return `{"success":true,...}`.
+- `JWT_SECRET`: existing private signing key.
+- `RESEND_API_KEY` and `RESEND_FROM`: verified sender configuration.
+  `RESEND_FROM_EMAIL` is accepted as an alias for existing local configuration.
+- `FRONTEND_URL`: comma-separated allowed frontend origins.
+- `PORT`: supplied by Render (local default is 5055).
 
-(A `render.yaml` blueprint is included at the repo root if you'd rather use
-Render's "Blueprint" import flow.)
+`render.yaml` lists the required settings. SMTP settings are not used by this API.
+Check `/api/health` after deployment; it checks API availability, not DB connectivity.
 
-## 4. Frontend — Vercel
+## Vercel frontend
 
-1. New Project → import your repo → set **root directory** to `frontend`.
-2. Framework preset: Vite (build command `npm run build`, output `dist` —
-   Vercel usually detects this automatically).
-3. Add environment variable:
-   - `VITE_API_URL` = `https://<your-render-service>.onrender.com/api`
-4. Deploy. Once you have the Vercel URL, go back to Render and set
-   `FRONTEND_URL` to it, then redeploy the backend so CORS allows it.
+Root directory: `frontend`. Build: `npm run build`. Output: `dist`.
+Set `VITE_API_URL` to your Render API URL ending in `/api`.
+`vercel.json` supports client-side routes and public share links.
 
-## Notes / things worth knowing
+## Verification
 
-- **Render free tier spins down when idle** — the first request after
-  inactivity can take 30–60s while it wakes up.
-- Excel-based inward uploads (`/api/inward/excel*`) use in-memory file
-  processing (`multer.memoryStorage()`), so there's no persistent file
-  storage requirement — good, since Render's disk is ephemeral.
-- The `inward` routes currently aren't behind the `authenticateToken`
-  middleware in the reconstructed `server.js`/routes — worth reviewing
-  whether that's intentional before going live.
-- Double check `schema.sql` against your actual local database if you
-  have one already; it was derived from code, not an existing dump, so
-  edge cases (extra indexes, slightly different column lengths) may
-  differ from what you originally had.
+Run `npm test --prefix backend`, `npm test --prefix frontend`, and
+`npm run build --prefix frontend`. Tests use fixtures and do not connect to Aiven.
+
+After deployment, verify login, public share links, a customer save, and inventory
+reads. Stock mutations and invoice rate edits require a logged-in user; user
+management requires an admin. Share-link revocation is restricted to its owner or
+an admin. Old ownerless links can be revoked by an admin if their IDs are known.
+
+New transaction and purchase-order numbers use database IDs, so gaps and a jump
+from older per-type numbering are expected. Returns are limited to outstanding
+quantity from the roll's latest dispatch and available physical capacity; damaged
+stock is not counted as dispatched stock.

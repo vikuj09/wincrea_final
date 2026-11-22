@@ -1,9 +1,7 @@
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 
-const JWT_SECRET =
-    process.env.JWT_SECRET ||
-    'window-creators-secret-change-this';
+const { JWT_SECRET } = require('../config/auth');
 
 
 // ============================================================
