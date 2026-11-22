@@ -1,5 +1,6 @@
 import React, {
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 
@@ -11,6 +12,8 @@ import {
 
 const API_URL =
   (import.meta.env.VITE_API_URL || '/api');
+
+const CATEGORIES = ['ESSENTIAL', 'PREMIUM', 'PEGASUS'];
 
 export default function SharedRollInventory() {
 
@@ -28,6 +31,25 @@ export default function SharedRollInventory() {
     error,
     setError,
   ] = useState('');
+
+  const [selectedCategory, setSelectedCategory] = useState(null);
+
+  const categories = useMemo(() => CATEGORIES.map((name) => {
+    const categoryRolls = rolls.filter(
+      (roll) => String(roll.category || '').trim().toUpperCase() === name
+    );
+
+    return {
+      name,
+      rolls: categoryRolls,
+      meters: categoryRolls.reduce((total, roll) => {
+        const remaining = Number(roll.remaining_length || 0);
+        return total + (Number.isFinite(remaining) ? remaining : 0);
+      }, 0),
+    };
+  }), [rolls]);
+
+  const selected = categories.find((category) => category.name === selectedCategory);
 
   useEffect(() => {
 
@@ -177,7 +199,44 @@ export default function SharedRollInventory() {
         </header>
 
 
-        <div className="card overflow-hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" aria-label="Roll categories">
+          {categories.map((category) => (
+            <button
+              key={category.name}
+              type="button"
+              aria-pressed={selectedCategory === category.name}
+              onClick={() => setSelectedCategory(category.name)}
+              className={`card p-5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-loom-600 ${
+                selectedCategory === category.name
+                  ? 'ring-2 ring-loom-600 bg-loom-50'
+                  : 'hover:bg-loom-50'
+              }`}
+            >
+              <span className="block font-display text-lg text-loom-700">{category.name}</span>
+              <span className="block text-sm text-ink-700/60 mt-2">
+                {category.rolls.length.toLocaleString('en-IN')} rolls
+                {' · '}
+                {category.meters.toLocaleString('en-IN', { maximumFractionDigits: 2 })} m remaining
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {!selected ? (
+          <p className="text-sm text-center text-ink-700/60 py-8">
+            Select a category to view its rolls.
+          </p>
+        ) : (
+        <section className="card overflow-hidden" aria-label={`${selected.name} rolls`}>
+
+          <div className="px-4 py-4 border-b border-ink-900/10" aria-live="polite">
+            <h2 className="font-display text-lg">{selected.name}</h2>
+            <p className="text-sm text-ink-700/60 mt-1">
+              Total rolls: {selected.rolls.length.toLocaleString('en-IN')}
+              {' · '}
+              Total remaining metres: {selected.meters.toLocaleString('en-IN', { maximumFractionDigits: 2 })} m
+            </p>
+          </div>
 
           <div className="overflow-x-auto">
 
@@ -225,7 +284,15 @@ export default function SharedRollInventory() {
 
               <tbody>
 
-                {rolls.map(
+                {selected.rolls.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-10 text-center text-ink-700/55">
+                      No rolls in {selected.name} yet.
+                    </td>
+                  </tr>
+                )}
+
+                {selected.rolls.map(
                   (roll) => (
 
                     <tr
@@ -303,7 +370,8 @@ export default function SharedRollInventory() {
 
           </div>
 
-        </div>
+        </section>
+        )}
 
       </div>
 
