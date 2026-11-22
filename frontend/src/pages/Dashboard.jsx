@@ -97,9 +97,7 @@ export default function Dashboard() {
   // TODAY'S INWARD
   //
   // Use actual inventory roll records as the source of truth.
-  // Each inwarded physical roll has an inwardDate and originalLength.
-  // This avoids duplicate transaction-item rows and repeated
-  // total_quantity values returned by the transactions endpoint.
+  // Count received rolls even if they have since been dispatched.
   // ============================================================
 
   const todayIn = useMemo(() => {
@@ -119,37 +117,38 @@ export default function Dashboard() {
         );
       })
       .reduce(
-        (total, roll) =>
-          total +
-          Number(
-            roll.originalLength ??
-            roll.length ??
-            0
-          ),
-        0
+        (total, roll) => ({
+          rolls: total.rolls + 1,
+          meters: total.meters + Number(roll.originalLength ?? roll.length ?? 0),
+        }),
+        { rolls: 0, meters: 0 }
       );
   }, [rolls]);
 
   // ============================================================
   // TODAY'S OUTWARD
   //
-  // Transactions contain one row per roll/item, so quantity is
-  // the correct field for today's outward movement.
+  // Only confirmed outward movements appear in the transaction ledger.
+  // Each transaction contains its roll count and nested roll items.
   // ============================================================
 
   const todayOut = useMemo(() => {
-  return transactions
-    .filter((t) => {
-      const type = String(t.transaction_type || '').toUpperCase();
-      if (type !== 'OUTWARD') return false;
+    return transactions
+      .filter((t) => {
+        const type = String(t.transaction_type || '').toUpperCase();
+        if (type !== 'OUTWARD') return false;
 
-      const createdAt = t.created_at ?? t.createdAt ?? null;
-      if (!createdAt) return false;
-
-      return isSameDay(createdAt);
-    })
-    .reduce((total, t) => total + Number(t.total_quantity ?? 0), 0);
-}, [transactions]);
+        const createdAt = t.created_at ?? t.createdAt ?? null;
+        return createdAt && isSameDay(createdAt);
+      })
+      .reduce(
+        (total, t) => ({
+          rolls: total.rolls + Number(t.total_rolls ?? t.items?.length ?? 0),
+          meters: total.meters + Number(t.total_quantity ?? 0),
+        }),
+        { rolls: 0, meters: 0 }
+      );
+  }, [transactions]);
 
   // ============================================================
   // REORDER ALERTS
@@ -309,16 +308,15 @@ export default function Dashboard() {
           ).getTime() >= cutoff
       )
       .forEach((transaction) => {
-        const productId =
-          transaction.product_id;
+        (transaction.items || []).forEach((item) => {
+          const productId = item.product_id;
+          const meters = Number(item.quantity);
 
-        if (!productId) return;
+          if (!productId || !Number.isFinite(meters) || meters <= 0) return;
 
-        productTotals[productId] =
-          (productTotals[productId] || 0) +
-          Number(
-            transaction.quantity || 0
-          );
+          productTotals[productId] =
+            (productTotals[productId] || 0) + meters;
+        });
       });
 
     return Object.entries(
@@ -368,7 +366,7 @@ export default function Dashboard() {
           STAT CARDS
       ====================================================== */}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
 
         <StatCard
           label="Rolls on hand"
@@ -384,15 +382,29 @@ export default function Dashboard() {
         />
 
         <StatCard
-          label="Today's inward"
-          value={`${todayIn.toLocaleString('en-IN')} m`}
+          label="Today's inward (metres)"
+          value={`${todayIn.meters.toLocaleString('en-IN')} m`}
           icon={ArrowDownToLine}
           tone="good"
         />
 
         <StatCard
-          label="Today's outward"
-          value={`${todayOut.toLocaleString('en-IN')} m`}
+          label="Today's inward rolls"
+          value={todayIn.rolls.toLocaleString('en-IN')}
+          icon={ArrowDownToLine}
+          tone="good"
+        />
+
+        <StatCard
+          label="Today's outward (metres)"
+          value={`${todayOut.meters.toLocaleString('en-IN')} m`}
+          icon={ArrowUpFromLine}
+          tone="warn"
+        />
+
+        <StatCard
+          label="Today's outward rolls"
+          value={todayOut.rolls.toLocaleString('en-IN')}
           icon={ArrowUpFromLine}
           tone="warn"
         />
