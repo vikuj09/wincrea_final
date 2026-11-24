@@ -1,3 +1,5 @@
+import { useLocation, useNavigate } from 'react-router-dom';
+import SavedFilters from '../components/common/SavedFilters';
 
 import React, { useMemo, useState, useEffect } from 'react';
 import {
@@ -54,6 +56,9 @@ function CategoryBadge({ category }) {
 // ------------------------------------------------------------
 
 export default function Outward() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [repeatOrder, setRepeatOrder] = useState(null);
   const {
     products = [],
     rolls = [],
@@ -90,10 +95,22 @@ export default function Outward() {
   // ------------------------------------------------------------
 
   useEffect(() => {
-    if (!customerId && customers.length > 0) {
+    const order = location.state?.repeatOrder;
+    if (!order || !Array.isArray(order.requirements)) return;
+    setRepeatOrder(order);
+    setCustomerId(String(order.customerId));
+    setSelected([]);
+    setProductId(String(order.requirements[0]?.productId || 'All'));
+    setQuery(''); setMinMeters(''); setMaxMeters('');
+    setNote(`Similar order to ${order.number}`);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.state, location.pathname, navigate]);
+
+  useEffect(() => {
+    if (!location.state?.repeatOrder && !customerId && customers.length > 0) {
       setCustomerId(String(customers[0].id));
     }
-  }, [customers, customerId]);
+  }, [customers, customerId, location.state]);
 
   // ------------------------------------------------------------
   // PRODUCT MAP
@@ -346,6 +363,7 @@ export default function Outward() {
 
       setSelected([]);
       setNote('');
+      setRepeatOrder(null);
 
     } catch (err) {
       console.error('OUTWARD DRAFT ERROR:', err);
@@ -374,6 +392,7 @@ export default function Outward() {
 
   return (
     <div className="space-y-5">
+      <SavedFilters page="Outward" values={{ query, productId, minMeters, maxMeters }} onApply={v => { setQuery(v.query || ''); setProductId(v.productId || 'All'); setMinMeters(v.minMeters || ''); setMaxMeters(v.maxMeters || ''); }} />
 
       {/* HEADER */}
 
@@ -399,6 +418,20 @@ export default function Outward() {
           </div>
         </div>
       </div>
+
+      {repeatOrder && <section className="rounded-xl border border-loom-200 bg-loom-50 p-4 space-y-2">
+        <div className="flex justify-between gap-3"><h2 className="font-medium">Preparing similar order to {repeatOrder.number}</h2><button type="button" className="btn-secondary" onClick={() => setRepeatOrder(null)}>Dismiss guide</button></div>
+        <p className="text-sm">Select available rolls for each product below. Quantities are a guide; the new PI uses the rolls you select and current rates.</p>
+        {repeatOrder.requirements.map(r => {
+          const stock = rolls.filter(roll => Number(roll.productId) === r.productId && String(roll.status).toUpperCase() === 'AVAILABLE' && Number(roll.remainingLength ?? roll.length) > 0);
+          const chosen = selectedRolls.filter(roll => Number(roll.productId) === r.productId);
+          return <div key={r.productId} className="flex flex-wrap items-center gap-2 text-sm">
+            <button type="button" className="btn-secondary" onClick={() => { setProductId(String(r.productId)); setQuery(''); setMinMeters(''); setMaxMeters(''); }}>{r.sku}</button>
+            <span>Previous: {r.rolls} rolls / {r.meters.toLocaleString('en-IN')} m · Available: {stock.length} rolls / {stock.reduce((n, roll) => n + Number(roll.remainingLength ?? roll.length), 0).toLocaleString('en-IN')} m · Selected: {chosen.length} rolls / {chosen.reduce((n, roll) => n + Number(roll.remainingLength ?? roll.length), 0).toLocaleString('en-IN')} m</span>
+            {!stock.length && <span className="text-red-600">Out of stock</span>}
+          </div>;
+        })}
+      </section>}
 
       {/* MAIN GRID */}
 

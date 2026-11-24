@@ -11,6 +11,7 @@ import { useApp } from './context/AppContext';
 import Login from './pages/Login';
 
 import Dashboard from './pages/Dashboard';
+import MyTasks from './pages/MyTasks';
 import ProductMaster from './pages/ProductMaster';
 import RollInventory from './pages/RollInventory';
 import Inward from './pages/Inward';
@@ -60,6 +61,8 @@ function ProtectedRoutes() {
           path="/"
           element={<Dashboard />}
         />
+
+        <Route path="/tasks" element={<MyTasks />} />
 
         <Route
           path="/products"

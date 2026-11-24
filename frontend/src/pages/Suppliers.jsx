@@ -1,6 +1,8 @@
+import { useSearchParams } from 'react-router-dom';
 import { escapePrintData } from '../utils/escapePrintData';
 import { transactionItems } from '../utils/transactions';
 import React, {
+  useEffect,
   useMemo,
   useState,
 } from 'react';
@@ -1498,6 +1500,7 @@ function printPI(
 // ============================================================
 
 export default function Suppliers() {
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const {
     suppliers,
@@ -2618,6 +2621,13 @@ export default function Suppliers() {
   // ==========================================================
   // PI COLUMNS
   // ==========================================================
+
+  useEffect(() => {
+    const id = searchParams.get('pi');
+    if (!id || !/^\d+$/.test(id)) return;
+    handleViewPI({ id: Number(id) });
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const piColumns = [
 
