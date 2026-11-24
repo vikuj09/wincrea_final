@@ -1,6 +1,3 @@
-import SavedFilters from '../components/common/SavedFilters';
-import { useNavigate } from 'react-router-dom';
-import { repeatRequirements } from '../utils/userWorkspace';
 import { transactionItems } from '../utils/transactions';
 import React, {
   useMemo,
@@ -36,7 +33,6 @@ const EMPTY = {
 };
 
 export default function Customers() {
-  const navigate = useNavigate();
 
   const {
     customers,
@@ -343,7 +339,6 @@ export default function Customers() {
 
   return (
     <div className="space-y-6">
-      <SavedFilters page="Customers" values={{ query }} onApply={v => { setQuery(v.query || ''); }} />
 
       {/* ======================================================
           HEADER
@@ -1027,23 +1022,6 @@ export default function Customers() {
               </div>
 
             </div>
-
-            <section className="space-y-3">
-              <h4 className="font-display text-base">Order history</h4>
-              <p className="text-xs text-ink-700/60">Prepare a similar order using current stock and current rates.</p>
-              <div className="max-h-72 overflow-y-auto space-y-3">
-                {transactions.filter(t => t.transaction_type === 'OUTWARD' && Number(t.customer_id) === Number(selected.id))
-                  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).map(order => {
-                    const requirements = repeatRequirements(order);
-                    return <div key={order.id} className="rounded-xl border p-3 space-y-2">
-                      <div className="flex flex-wrap justify-between gap-2"><strong>{order.transaction_number || `Order ${order.id}`}</strong><span className="text-xs">{formatDate(order.created_at)}</span></div>
-                      {requirements.map(r => <p key={r.productId} className="text-sm">{r.sku} · {r.rolls} rolls · {r.meters.toLocaleString('en-IN')} m</p>)}
-                      <button className="btn-secondary" disabled={!requirements.length} onClick={() => navigate('/outward', { state: { repeatOrder: { customerId: selected.id, number: order.transaction_number || String(order.id), requirements } } })}>Prepare similar order</button>
-                    </div>;
-                  })}
-                {!historyFor(selected.id).length && <p className="text-sm text-ink-700/60">No orders on record yet.</p>}
-              </div>
-            </section>
 
             {/* Recent dispatches */}
 

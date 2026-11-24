@@ -367,7 +367,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <Link to="/tasks" className="btn-secondary">Open My Tasks →</Link>
 
       {/* HEADER */}
 

@@ -1,4 +1,3 @@
-import SavedFilters from '../components/common/SavedFilters';
 
 import React, { useMemo, useState } from 'react';
 import { Download, Share2 } from 'lucide-react';
@@ -459,7 +458,6 @@ export default function RollInventory() {
 
   return (
     <div className="space-y-5">
-      <SavedFilters page="RollInventory" values={{ query, statusFilter, productFilter }} onApply={v => { setQuery(v.query || ''); setStatusFilter(v.statusFilter || 'All'); setProductFilter(v.productFilter || 'All'); }} />
 
       {/* HEADER */}
 

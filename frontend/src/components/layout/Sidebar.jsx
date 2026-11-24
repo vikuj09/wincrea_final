@@ -22,7 +22,6 @@ import { useApp } from '../../context/AppContext';
 
 
 const NAV = [
-  { to: '/tasks', label: 'My Tasks', icon: ScrollText },
   {
     to: '/',
     label: 'Dashboard',

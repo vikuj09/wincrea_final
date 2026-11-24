@@ -1,4 +1,3 @@
-import SavedFilters from '../components/common/SavedFilters';
 import { buildLedgerEntries, ledgerDate } from '../utils/ledger';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download, RefreshCw } from 'lucide-react';
@@ -443,7 +442,6 @@ export default function Ledger() {
 
   return (
     <div className="space-y-5">
-      <SavedFilters page="Ledger" values={{ query, typeFilter, fromDate, toDate }} onApply={v => { setQuery(v.query || ''); setTypeFilter(v.typeFilter || 'All'); setFromDate(v.fromDate || ''); setToDate(v.toDate || ''); }} />
 
       {/* HEADER */}
 
